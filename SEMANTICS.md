@@ -97,3 +97,31 @@ never be able to affect the app it observes.)
 *Tested:* the suite asserts notification behaviour is unchanged with a probe
 attached, that no-op writes are not reported as mutations, and that a throwing
 probe neither wedges the pipeline nor silences other probes.
+
+## Collections — `RamblaList<T>`
+
+`RamblaList<T>` applies the same mutation ≠ notification model to a collection,
+with the extra invariant WPF requires: the visible contents must always agree with
+the change events already raised.
+
+1. **Reads are the flushed state.** `Count`, the indexer, and enumeration reflect
+   the last flushed (UI-visible) contents — never the pending target. A mutation is
+   not observable to a reader until the next flush. (This differs from
+   `RamblaState`, whose property getters return the new value immediately; a
+   collection cannot, without violating WPF's Count/`CollectionChanged` invariant.)
+2. **One coalesced flush.** A burst of mutations (or a `BeginUpdate` batch) produces
+   one flush. The flush diffs the previous visible contents against the new target
+   by `EqualityComparer<T>.Default` and raises the **minimum** `Add`/`Remove`/
+   `Replace` events — or a single `Reset` when more than `ResetThreshold` (default
+   32) elements changed. A net-zero batch (add then remove) raises nothing.
+3. **No moves in V1.** Reordering the same instances is reported as replacements,
+   not `Move` events. Keep stable row instances and update their fields via
+   `RamblaState`; the list then changes only on real add/remove.
+4. **Threading.** Mutators are safe from any thread. Reads and raised events belong
+   to the scheduler's thread (the UI thread under a dispatcher adapter). The
+   non-generic `IList` view is **read-only** (so WPF uses a virtualizing
+   `ListCollectionView`); all writes go through the typed mutators.
+
+*Tested:* deferred visibility, add/remove/replace index correctness, prefix/suffix
+minimal diffs, Reset fallback, net-zero coalescing, and concurrent writers all
+landing in the final state.

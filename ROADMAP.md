@@ -70,15 +70,23 @@ The demo sells the library on its own.
 **Exit criteria:** the flagship benchmark shows Rambla collapsing tens of
 thousands of mutations/sec into ~60 coherent notifications/sec, reproducibly.
 
-## Phase 2 — High-frequency collections
+## Phase 2 — High-frequency collections — **`RamblaList<T>` shipped (V1)**
 
-- `RamblaList<T>` — batched changes, single aggregated notification
-- `Batch(...)` API for grouped add/remove/update
-- `ReplaceSnapshot(...)` with efficient diffing (minimal UI changes)
-- `RamblaDictionary<K,V>`
+Ships in the core `Rambla` package.
+
+- `RamblaList<T>` ✅ — thread-safe writes, coalesced flush, minimum-diff
+  `CollectionChanged` (Add/Remove/Replace) with a single-`Reset` fallback past
+  `ResetThreshold`
+- `Batch(...)` / `BeginUpdate()` for grouped add/remove/update ✅
+- `ReplaceSnapshot(...)` with a prefix/suffix diff (minimal UI changes) ✅
+- Read-only `IList` view so WPF uses a virtualizing `ListCollectionView` ✅
+- `RamblaDictionary<K,V>` — **next** (the keyed companion)
 
 **Scope guard:** we do *not* build a reactive query engine — that's
 DynamicData. We only make the collection → UI boundary cheap.
+
+**Not yet:** `Move` events (reorders are reported as replacements in V1);
+per-property diagnostics for collections.
 
 ## Phase 3 — Async lifecycle
 

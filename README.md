@@ -94,13 +94,16 @@ worker writes → dirty state → coalesce → UI flush (~16 ms) → batched not
 - **Live diagnostics** — attach `StateDiagnostics.Attach(vm)` (the
   `Rambla.Diagnostics` package) for rates, coalescing ratio, hot properties,
   dispatcher latency and actionable recommendations. See below.
+- **High-frequency collections** — `RamblaList<T>` accepts writes from any thread
+  and coalesces a burst into the minimum `CollectionChanged` events per flush
+  (`Batch`, `ReplaceSnapshot` with a minimal diff), instead of one per item.
 
 **On the roadmap** (designed, not yet shipped — see [ROADMAP.md](./ROADMAP.md)):
 
-- **Snapshots** *(planned)* — publish an immutable snapshot as a single
-  consistent unit; the state-atomicity path for market data and telemetry feeds.
-- **High-frequency collections** *(planned)* — `RamblaList<T>` with batched
-  changes and efficient diffing, instead of one notification per item.
+- **Snapshots** *(planned)* — publish an immutable scalar-state snapshot as a
+  single consistent unit; the cross-thread state-atomicity path. *(For
+  collections, `RamblaList<T>.ReplaceSnapshot` ships today.)*
+- **`RamblaDictionary<K,V>`** *(planned)* — the keyed companion to `RamblaList<T>`.
 - **Frequency policy** *(planned)* — throttling as a property of the *state*
   (`MaxRefreshRate`), not something every ViewModel re-implements. *(The option
   exists today but is reserved; the built-in throttling scheduler is Phase 1.)*

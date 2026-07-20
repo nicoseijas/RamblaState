@@ -4,8 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- Underscored Given_When_Then test names are idiomatic; CA1707 does not apply here. -->
-    <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <!-- Underscored Given_When_Then test names are idiomatic (CA1707); inline
+         constant arrays as test data are fine (CA1861). Neither applies to tests. -->
+    <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
