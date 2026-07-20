@@ -24,12 +24,14 @@ public sealed class DashboardViewModel : RamblaState
 
     private readonly Dispatcher _dispatcher;
     private readonly DemoMetrics _metrics = new();
+    private readonly LatencyProbe _probe = new();
     private readonly List<ISymbolRow> _tracked = new();
     private readonly DispatcherTimer _statsTimer;
     private readonly DispatcherTimer _lagProbe;
 
     private SyntheticFeed? _feed;
     private ThrottledDispatcherScheduler? _throttled;
+    private ISymbolRow? _canary;
 
     private long _lagLastTicks;
     private double _lagMaxMs;
@@ -49,6 +51,9 @@ public sealed class DashboardViewModel : RamblaState
     private double _flushP95Ms;
     private double _flushP99Ms;
     private double _uiLagMaxMs;
+    private double _latencyP50Ms;
+    private double _latencyP95Ms;
+    private double _latencyP99Ms;
 
     public DashboardViewModel(Dispatcher dispatcher)
         : base(ImmediateStateScheduler.Instance)
@@ -99,15 +104,31 @@ public sealed class DashboardViewModel : RamblaState
 
     public double UiLagMaxMs { get => _uiLagMaxMs; private set => SetField(ref _uiLagMaxMs, value); }
 
+    public double LatencyP50Ms { get => _latencyP50Ms; private set => SetField(ref _latencyP50Ms, value); }
+
+    public double LatencyP95Ms { get => _latencyP95Ms; private set => SetField(ref _latencyP95Ms, value); }
+
+    public double LatencyP99Ms { get => _latencyP99Ms; private set => SetField(ref _latencyP99Ms, value); }
+
+    /// <summary>Called once per rendered frame to sample producer → visible latency from the canary row.</summary>
+    public void OnRendering()
+    {
+        if (_running && _canary is not null)
+        {
+            _probe.Observe(_canary.Last);
+        }
+    }
+
     public async Task StartAsync()
     {
         await StopAsync().ConfigureAwait(true);
 
         BuildRows();
         _metrics.Reset();
+        _probe.Reset();
 
         ISymbolRow[] rows = _tracked.ToArray();
-        _feed = new SyntheticFeed(rows, _metrics, _targetRate);
+        _feed = new SyntheticFeed(rows, _metrics, _targetRate, _probe);
         _feed.Start();
 
         Running = true;
@@ -161,6 +182,8 @@ public sealed class DashboardViewModel : RamblaState
             _tracked.Add(row);
             Rows.Add(row);
         }
+
+        _canary = _tracked.Count > 0 ? _tracked[0] : null;
     }
 
     private IStateScheduler BuildCoalescingScheduler()
@@ -184,6 +207,10 @@ public sealed class DashboardViewModel : RamblaState
 
         UiLagMaxMs = _lagMaxMs;
         _lagMaxMs = 0;
+
+        LatencyP50Ms = _probe.P50Ms;
+        LatencyP95Ms = _probe.P95Ms;
+        LatencyP99Ms = _probe.P99Ms;
     }
 
     private void OnLagTick(object? sender, EventArgs e)

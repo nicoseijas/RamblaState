@@ -19,15 +19,17 @@ public sealed class SyntheticFeed
     private readonly ISymbolRow[] _rows;
     private readonly DemoMetrics _metrics;
     private readonly int _targetQuotesPerSecond;
+    private readonly LatencyProbe? _probe;
 
     private CancellationTokenSource? _cts;
     private Task? _worker;
 
-    public SyntheticFeed(ISymbolRow[] rows, DemoMetrics metrics, int targetQuotesPerSecond)
+    public SyntheticFeed(ISymbolRow[] rows, DemoMetrics metrics, int targetQuotesPerSecond, LatencyProbe? probe = null)
     {
         _rows = rows;
         _metrics = metrics;
         _targetQuotesPerSecond = Math.Max(1, targetQuotesPerSecond);
+        _probe = probe;
     }
 
     public void Start()
@@ -74,11 +76,15 @@ public sealed class SyntheticFeed
         var clock = Stopwatch.StartNew();
         long emitted = 0;
 
+        // Reserve row 0 as the latency canary so the load never overwrites its
+        // sequence value between produce and observe.
+        int firstLoadIndex = _probe is not null && _rows.Length > 1 ? 1 : 0;
+
         while (!token.IsCancellationRequested)
         {
             for (int b = 0; b < batch; b++)
             {
-                int index = random.Next(_rows.Length);
+                int index = random.Next(firstLoadIndex, _rows.Length);
                 decimal mid = seed[index] + ((decimal)random.NextDouble() - 0.5m);
                 seed[index] = mid;
 
@@ -93,6 +99,13 @@ public sealed class SyntheticFeed
 
             emitted += batch;
             _metrics.OnIncomingUpdates(batch * FieldsPerQuote);
+
+            // Publish one canary tick per batch through the same pipeline as the load.
+            if (_probe is not null && _rows.Length > 0)
+            {
+                _rows[0].Apply(0m, 0m, _probe.NextValue(), 0m, 0m);
+                _metrics.OnIncomingUpdates(FieldsPerQuote);
+            }
 
             // Soft rate limit: throttle to the target quotes/second.
             double expectedSeconds = emitted / (double)_targetQuotesPerSecond;

@@ -64,7 +64,8 @@
         </Border>
 
         <!-- Stat cards -->
-        <UniformGrid Grid.Row="2" Rows="1" Columns="7">
+        <StackPanel Grid.Row="2">
+        <UniformGrid Rows="1" Columns="7">
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="INCOMING MUTATIONS/S" Style="{StaticResource StatLabel}" />
@@ -113,6 +114,31 @@
                 </StackPanel>
             </Border>
         </UniformGrid>
+
+        <!-- Producer -> visible latency (the macrobenchmark) -->
+        <TextBlock Text="PRODUCER → VISIBLE LATENCY (end-to-end)" Style="{StaticResource StatLabel}"
+                   Margin="8,6,0,0" FontWeight="SemiBold" />
+        <UniformGrid Rows="1" Columns="3">
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="LATENCY p50" Style="{StaticResource StatLabel}" />
+                    <TextBlock Text="{Binding LatencyP50Ms, StringFormat={}{0:N1} ms}" Style="{StaticResource StatValue}" Foreground="#A5D6FF" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="LATENCY p95" Style="{StaticResource StatLabel}" />
+                    <TextBlock Text="{Binding LatencyP95Ms, StringFormat={}{0:N1} ms}" Style="{StaticResource StatValue}" Foreground="#F0883E" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="LATENCY p99" Style="{StaticResource StatLabel}" />
+                    <TextBlock Text="{Binding LatencyP99Ms, StringFormat={}{0:N1} ms}" Style="{StaticResource StatValue}" Foreground="#DB6D28" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+        </StackPanel>
 
         <!-- Grid of symbols -->
         <Border Grid.Row="3" Style="{StaticResource Card}">

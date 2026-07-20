@@ -89,8 +89,10 @@ Micro-benchmarks can't show dispatcher saturation or frame latency. The
 [market dashboard sample](./samples/Rambla.Demo.MarketDashboard) runs the same
 synthetic feed through Naive, Rambla-Immediate and Rambla-Coalesced and shows
 incoming mutations/s, `PropertyChanged`/s, coalescing %, flush p50/p95/p99 and UI
-lag live. A full end-to-end **producer→visible-value latency** probe (to derive
-the refresh-rate sweet spot) is the next macrobenchmark.
+lag live. It also includes the **producer→visible-value latency** macrobenchmark:
+a canary row stamped by the feed and read on every rendered frame reports
+end-to-end latency p50/p95/p99, so you can sweep the refresh rate and find the
+knee where `MaxRefreshRate` should sit (usually ~60 Hz).
 
 ## The one-line positioning
 
