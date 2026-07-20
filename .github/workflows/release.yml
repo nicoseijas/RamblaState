@@ -4,8 +4,13 @@ name: Release to NuGet
 #   git tag v0.1.0 && git push origin v0.1.0
 # The package version is taken from the tag (v0.1.0 -> 0.1.0).
 #
-# Requires a repository secret NUGET_API_KEY:
-#   Settings > Secrets and variables > Actions > New repository secret
+# Auth: NuGet Trusted Publishing (OIDC) — no long-lived API key.
+# One-time setup on nuget.org (your username > Trusted Publishing > add policy):
+#   Repository Owner : nicoseijas
+#   Repository       : RamblaState
+#   Workflow File    : release.yml          (file name only, no path)
+#   Environment      : (leave empty)
+# And add a repo secret NUGET_USER = your nuget.org profile name (not your email).
 on:
   push:
     tags: ["v*"]
@@ -18,6 +23,9 @@ on:
 jobs:
   publish:
     runs-on: windows-latest
+    permissions:
+      id-token: write   # required for GitHub to issue the OIDC token
+      contents: read
 
     steps:
       - name: Checkout
@@ -47,16 +55,24 @@ jobs:
           -p:ContinuousIntegrationBuild=true
           -o ${{ github.workspace }}/artifacts
 
-      # Push the core first (Rambla.Wpf depends on it), then the rest.
-      # --skip-duplicate makes re-runs safe. snupkg symbol packages push alongside.
+      # Exchange the OIDC token for a short-lived (1 h) NuGet API key.
+      # Requested right before the push so it cannot expire in between.
+      - name: NuGet login (OIDC → temporary API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # Push the core first (Rambla.Wpf depends on it), then everything.
+      # --skip-duplicate keeps re-runs safe; snupkg symbols push alongside.
       - name: Push to NuGet
         shell: bash
         run: |
           dotnet nuget push "artifacts/Rambla.${{ steps.ver.outputs.value }}.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json --skip-duplicate
           dotnet nuget push "artifacts/*.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Upload packages as build artifacts
