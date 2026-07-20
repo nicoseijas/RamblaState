@@ -121,7 +121,12 @@ the change events already raised.
    to the scheduler's thread (the UI thread under a dispatcher adapter). The
    non-generic `IList` view is **read-only** (so WPF uses a virtualizing
    `ListCollectionView`); all writes go through the typed mutators.
+5. **Flush execution is serialized.** At most one flush applies to the visible list
+   at a time, even under an inline scheduler with concurrent writers, or when a
+   `CollectionChanged` handler mutates the list re-entrantly. A flush that finds one
+   already running bails out; the running flusher drains all pending changes.
 
 *Tested:* deferred visibility, add/remove/replace index correctness, prefix/suffix
-minimal diffs, Reset fallback, net-zero coalescing, and concurrent writers all
-landing in the final state.
+minimal diffs, Reset fallback, net-zero coalescing, concurrent writers landing in
+the final state, and no corruption under concurrent/reentrant flush on an inline
+scheduler.

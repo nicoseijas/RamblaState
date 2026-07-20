@@ -46,12 +46,14 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
 
     private readonly IStateScheduler _scheduler;
     private readonly object _gate = new();
+    private readonly object _syncRoot = new();
     private readonly List<T> _target = new(); // pending intended contents (any thread, under _gate)
-    private readonly List<T> _view = new();    // UI-visible contents (scheduler thread only)
+    private readonly List<T> _view = new();    // UI-visible contents (only the active flusher touches it)
 
     private int _batchDepth;
     private bool _flushScheduled;
     private bool _dirty;
+    private bool _flushing; // true while a flush is applying to _view; serializes flush execution
 
     /// <summary>Raised, coalesced per flush, when the visible contents change.</summary>
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
@@ -199,20 +201,54 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
 
     private void Flush()
     {
-        T[] target;
+        // Serialize flush *execution*, not just scheduling. ApplyDiff mutates the
+        // shared _view outside _gate, so at most one flush may run it at a time —
+        // otherwise a concurrent writer (under an inline scheduler) or a reentrant
+        // event handler could run a second ApplyDiff over _view mid-transition and
+        // corrupt it. A flush that finds one already running bails out; the running
+        // flusher drains everything via the loop below (atomic hand-off under _gate).
         lock (_gate)
         {
             _flushScheduled = false;
-            if (!_dirty)
+            if (_flushing || !_dirty)
             {
                 return;
             }
 
-            _dirty = false;
-            target = _target.ToArray();
+            _flushing = true;
         }
 
-        ApplyDiff(target);
+        while (true)
+        {
+            T[] target;
+            lock (_gate)
+            {
+                if (!_dirty)
+                {
+                    _flushing = false; // cleared under _gate, atomically with the empty check
+                    return;
+                }
+
+                _dirty = false;
+                target = _target.ToArray();
+            }
+
+            try
+            {
+                ApplyDiff(target);
+            }
+            catch
+            {
+                // Leave the engine flushable: a partial flush is reconciled by the
+                // next flush's diff (old _view vs newest target). Fail-fast otherwise.
+                lock (_gate)
+                {
+                    _flushing = false;
+                }
+
+                throw;
+            }
+        }
     }
 
     private void ApplyDiff(T[] target)
@@ -337,7 +373,10 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
 
     bool ICollection.IsSynchronized => false;
 
-    object ICollection.SyncRoot => _gate;
+    // A dedicated sentinel, not _gate: _gate guards the pending target, not _view,
+    // so locking SyncRoot would not actually coordinate with the flush that mutates
+    // the visible contents. IsSynchronized is false — read on the scheduler thread.
+    object ICollection.SyncRoot => _syncRoot;
 
     object? IList.this[int index]
     {

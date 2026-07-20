@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using FluentAssertions;
+using Rambla.Scheduling;
 using Xunit;
 
 namespace Rambla.Tests;
@@ -191,5 +192,49 @@ public sealed class RamblaListTests
 
         list.Count.Should().Be(threads * perThread);
         list.Distinct().Should().HaveCount(threads * perThread); // no lost or duplicated writes
+    }
+
+    [Fact]
+    public void Concurrent_writers_under_an_inline_scheduler_do_not_corrupt_the_view()
+    {
+        // ImmediateStateScheduler runs the flush inline on the writing thread, so
+        // this exercises concurrent ApplyDiff over the shared _view — which must be
+        // serialized. Without the single-flusher guard this throws or loses writes.
+        var list = new RamblaList<int>(ImmediateStateScheduler.Instance);
+        const int perThread = 1_000;
+        const int threads = 4;
+
+        Parallel.For(0, threads, t =>
+        {
+            for (int i = 0; i < perThread; i++)
+            {
+                list.Add((t * perThread) + i);
+            }
+        });
+
+        list.Count.Should().Be(threads * perThread);
+        list.Distinct().Should().HaveCount(threads * perThread);
+    }
+
+    [Fact]
+    public void A_reentrant_mutation_from_a_handler_does_not_corrupt_the_view()
+    {
+        // Under an inline scheduler, a handler that mutates the list re-enters Flush
+        // synchronously. The reentrant flush must not run a second ApplyDiff over
+        // the _view mid-transition; the change is drained by the running flush.
+        var list = new RamblaList<int>(ImmediateStateScheduler.Instance);
+        bool injected = false;
+        list.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add && !injected)
+            {
+                injected = true;
+                list.Add(999); // reentrant write from within the notification
+            }
+        };
+
+        list.Add(1);
+
+        list.Should().Equal(1, 999); // both applied, in order, no exception
     }
 }
