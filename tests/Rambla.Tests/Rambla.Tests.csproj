@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rambla\Rambla.csproj" />
+    <ProjectReference Include="..\..\src\Rambla.Diagnostics\Rambla.Diagnostics.csproj" />
     <!-- Referenced directly (not as an analyzer) so tests can drive the generator. -->
     <ProjectReference Include="..\..\src\Rambla.Generators\Rambla.Generators.csproj" />
   </ItemGroup>

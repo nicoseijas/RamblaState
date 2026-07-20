@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Rambla.Scheduling;
@@ -43,6 +44,10 @@ public abstract class RamblaState : INotifyPropertyChanged
     private long _mutations;
     private long _flushes;
     private long _notifications;
+
+    // Copy-on-write array of attached diagnostics probes; null when none (the
+    // common case), so the hot path pays only one volatile read + null check.
+    private IStateProbe[]? _probes;
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -101,6 +106,15 @@ public abstract class RamblaState : INotifyPropertyChanged
             Interlocked.Increment(ref _mutations);
         }
 
+        IStateProbe[]? probes = Volatile.Read(ref _probes);
+        if (probes is not null)
+        {
+            for (int i = 0; i < probes.Length; i++)
+            {
+                probes[i].OnMutation(propertyName);
+            }
+        }
+
         // Post outside the lock: an ImmediateStateScheduler runs the flush
         // synchronously, and raising notifications must never happen while _gate
         // is held (reentrancy / deadlock risk if a handler touches the state).
@@ -110,6 +124,76 @@ public abstract class RamblaState : INotifyPropertyChanged
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Attaches a diagnostics <see cref="IStateProbe"/> that observes this state's
+    /// mutations and flushes. Returns a token; dispose it to detach. Attaching a
+    /// probe does not change any behaviour — it is a pure observer (see
+    /// <see cref="IStateProbe"/>). Multiple probes may be attached.
+    /// </summary>
+    public IDisposable AttachProbe(IStateProbe probe)
+    {
+        if (probe is null)
+        {
+            throw new ArgumentNullException(nameof(probe));
+        }
+
+        while (true)
+        {
+            IStateProbe[]? current = Volatile.Read(ref _probes);
+            IStateProbe[] updated;
+            if (current is null)
+            {
+                updated = new[] { probe };
+            }
+            else
+            {
+                updated = new IStateProbe[current.Length + 1];
+                Array.Copy(current, updated, current.Length);
+                updated[current.Length] = probe;
+            }
+
+            if (Interlocked.CompareExchange(ref _probes, updated, current) == current)
+            {
+                return new ProbeToken(this, probe);
+            }
+        }
+    }
+
+    private void DetachProbe(IStateProbe probe)
+    {
+        while (true)
+        {
+            IStateProbe[]? current = Volatile.Read(ref _probes);
+            if (current is null)
+            {
+                return;
+            }
+
+            int index = Array.IndexOf(current, probe);
+            if (index < 0)
+            {
+                return;
+            }
+
+            IStateProbe[]? updated;
+            if (current.Length == 1)
+            {
+                updated = null;
+            }
+            else
+            {
+                updated = new IStateProbe[current.Length - 1];
+                Array.Copy(current, 0, updated, 0, index);
+                Array.Copy(current, index + 1, updated, index, current.Length - index - 1);
+            }
+
+            if (Interlocked.CompareExchange(ref _probes, updated, current) == current)
+            {
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -199,20 +283,46 @@ public abstract class RamblaState : INotifyPropertyChanged
         }
 
         PropertyChangedEventHandler? handler = PropertyChanged;
-        if (handler is null)
+        IStateProbe[]? probes = Volatile.Read(ref _probes);
+
+        // Nothing to do at all: no observers of either kind.
+        if (handler is null && probes is null)
         {
             return;
         }
 
-        foreach (string name in names)
+        long startTimestamp = probes is null ? 0L : Stopwatch.GetTimestamp();
+
+        if (handler is not null)
         {
-            handler(this, new PropertyChangedEventArgs(name));
+            foreach (string name in names)
+            {
+                handler(this, new PropertyChangedEventArgs(name));
+            }
+
+            if (_collectMetrics)
+            {
+                Interlocked.Add(ref _notifications, names.Length);
+            }
         }
 
-        if (_collectMetrics)
+        // The probe observes every coalesced flush, whether or not a UI handler is
+        // attached — coalescing is a property of the engine, not of the subscriber.
+        if (probes is not null)
         {
-            Interlocked.Add(ref _notifications, names.Length);
+            TimeSpan raiseDuration = handler is null ? TimeSpan.Zero : ElapsedSince(startTimestamp);
+            for (int i = 0; i < probes.Length; i++)
+            {
+                probes[i].OnFlush(names, raiseDuration);
+            }
         }
+    }
+
+    private static TimeSpan ElapsedSince(long startTimestamp)
+    {
+        // Stopwatch.GetElapsedTime is unavailable on netstandard2.0; derive it.
+        double seconds = (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
+        return TimeSpan.FromSeconds(seconds);
     }
 
     private sealed class UpdateScope : IDisposable
@@ -225,6 +335,24 @@ public abstract class RamblaState : INotifyPropertyChanged
         {
             RamblaState? owner = Interlocked.Exchange(ref _owner, null);
             owner?.EndUpdate();
+        }
+    }
+
+    private sealed class ProbeToken : IDisposable
+    {
+        private readonly IStateProbe _probe;
+        private RamblaState? _owner;
+
+        public ProbeToken(RamblaState owner, IStateProbe probe)
+        {
+            _owner = owner;
+            _probe = probe;
+        }
+
+        public void Dispose()
+        {
+            RamblaState? owner = Interlocked.Exchange(ref _owner, null);
+            owner?.DetachProbe(_probe);
         }
     }
 }

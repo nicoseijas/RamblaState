@@ -31,8 +31,8 @@
     <PackageTags>mvvm;wpf;observable;state;real-time;high-frequency;dispatcher;trading;telemetry</PackageTags>
 
     <!-- Single source of truth for the version of every package. Override on the
-         command line for CI: dotnet pack -p:Version=0.2.0 -->
-    <Version>0.1.0</Version>
+         command line for CI: dotnet pack -p:Version=0.3.0 -->
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <!-- Packaging quality: applied only when a project sets IsPackable=true.

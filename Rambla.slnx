@@ -6,6 +6,7 @@
     <Project Path="samples/Rambla.Demo.MarketDashboard/Rambla.Demo.MarketDashboard.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Rambla.Diagnostics/Rambla.Diagnostics.csproj" />
     <Project Path="src/Rambla.Generators/Rambla.Generators.csproj" />
     <Project Path="src/Rambla.Wpf/Rambla.Wpf.csproj" />
     <Project Path="src/Rambla/Rambla.csproj" />

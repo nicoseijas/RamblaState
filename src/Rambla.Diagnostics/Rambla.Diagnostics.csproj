@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Rambla.Diagnostics</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rambla.Diagnostics</PackageId>
+    <Description>Live diagnostics for Rambla: mutation/notification rates, coalescing ratio, dispatcher latency, hot-property detection and actionable recommendations. Turns the invisible cost of pushing background state to the UI into something you can observe and prove.</Description>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rambla\Rambla.csproj" />
+  </ItemGroup>
+
+</Project>

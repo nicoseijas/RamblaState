@@ -91,6 +91,9 @@ worker writes → dirty state → coalesce → UI flush (~16 ms) → batched not
   integration is an `IStateScheduler` adapter (WPF ships today).
 - **Opt-in metrics** — turn on lifetime counters (`Metrics`) to see how many
   mutations coalesced away.
+- **Live diagnostics** — attach `StateDiagnostics.Attach(vm)` (the
+  `Rambla.Diagnostics` package) for rates, coalescing ratio, hot properties,
+  dispatcher latency and actionable recommendations. See below.
 
 **On the roadmap** (designed, not yet shipped — see [ROADMAP.md](./ROADMAP.md)):
 
@@ -105,34 +108,36 @@ worker writes → dirty state → coalesce → UI flush (~16 ms) → batched not
   priority levels, so real-time data outranks background text.
 - **Async state commands** *(planned)* — commands with built-in busy/error/cancel
   lifecycle and latest-wins semantics.
-- **Rich diagnostics** *(planned)* — a live attachable overlay; see below.
 
-## Where this is going: diagnostics
+## The flagship: diagnostics
 
-The core already exposes opt-in coalescing metrics per instance. The flagship
-goal (Phase 4) is a live, attachable diagnostics overlay that turns the invisible
-cost of pushing background state to the UI into something you can observe and
-prove:
+Attach a session to any state (it's a pure observer — zero behaviour change) and
+poll it. This turns the invisible cost of pushing background state to the UI into
+something you can observe and prove:
 
 ```csharp
-StateDiagnostics.Attach(viewModel);   // planned — Phase 4
+using var session = StateDiagnostics.Attach(viewModel);
+Console.WriteLine(session.Snapshot());   // e.g. once a second
 ```
 
 ```
-MarketViewModel                         ← target output, not yet implemented
-  Incoming state mutations : 18,420 / sec
-  UI notifications         :     58 / sec
-  Coalescing               :  99.68 %
-  Dispatcher hops          :     60 / sec
-  Longest UI flush         :   2.8 ms
-  UI thread budget         :     17 %
+MarketViewModel
+  Incoming state mutations  :   18,420 / sec
+  UI notifications          :       58 / sec
+  Coalescing                :   99.68 %
+  Dispatcher hops           :       60 / sec
+  Longest UI flush          :   2.8 ms
+  UI thread budget          :     17 %
 
-  ⚠ Positions collection generated 14,281 individual notifications/sec.
-    Recommendation: use Batch() or ReplaceSnapshot().
+  ⚠ 'Positions' generated 14,281 notifications/sec. Recommendation: batch related
+    writes with BeginUpdate(), or for a collection use Batch()/ReplaceSnapshot().
 ```
 
-Today you can already read the same coalescing ratio programmatically via the
-opt-in `Metrics` counters ([BENCHMARKS.md](./BENCHMARKS.md) shows them in use).
+Dispatcher latency, hops and an accurate UI-thread budget come from wrapping your
+scheduler with `DiagnosticsScheduler`; without it those lines are omitted and the
+rest is derived from notification-raise time. For a lighter footprint, the core
+also exposes lifetime coalescing counters via the opt-in `Metrics` property
+([BENCHMARKS.md](./BENCHMARKS.md) shows them in use).
 
 ## Built for
 
@@ -156,12 +161,13 @@ Rambla owns a smaller, sharper problem:
 
 ## Packages
 
-| Package         | Purpose                                        |
-| --------------- | ---------------------------------------------- |
-| `Rambla`        | Framework-agnostic core state engine           |
-| `Rambla.Wpf`    | WPF dispatcher scheduler adapter               |
-| `Rambla.WinUI`  | WinUI 3 adapter *(planned)*                     |
-| `Rambla.Avalonia` | Avalonia adapter *(planned)*                  |
+| Package             | Purpose                                        |
+| ------------------- | ---------------------------------------------- |
+| `Rambla`            | Framework-agnostic core state engine           |
+| `Rambla.Diagnostics`| Live diagnostics (`StateDiagnostics.Attach`)   |
+| `Rambla.Wpf`        | WPF dispatcher scheduler adapter               |
+| `Rambla.WinUI`      | WinUI 3 adapter *(planned)*                     |
+| `Rambla.Avalonia`   | Avalonia adapter *(planned)*                   |
 
 The core never references `Dispatcher`. Framework integration is an adapter
 behind `IStateScheduler`.

@@ -78,3 +78,15 @@ a deferred `ManualStateScheduler`.
 
 This is a deliberate V1 decision to keep the base class free of accidental
 lifecycle. If disposal is ever needed, it will be an explicit, additive opt-in.
+
+## Observability — probes do not change behaviour
+
+`RamblaState.AttachProbe(IStateProbe)` attaches a diagnostics observer (used by
+the `Rambla.Diagnostics` package). A probe is a **pure observer**: it is invoked
+*after* a mutation is accepted and *after* a flush's notifications are raised, and
+it changes none of the contracts above — notification order, coalescing,
+coherence, and exception behaviour are identical whether or not a probe is
+attached. When no probe is attached, the hot path pays a single volatile read.
+
+*Tested:* the suite asserts notification behaviour is unchanged with a probe
+attached, and that no-op writes are not reported as mutations.

@@ -92,17 +92,26 @@ DynamicData. We only make the collection → UI boundary cheap.
 `AsyncRelayCommand`. It exists only where concurrent *state* lifecycle adds
 value.
 
-## Phase 4 — Diagnostics (the flagship)
+## Phase 4 — Diagnostics (the flagship) — **shipped (V1)**
 
-- `StateDiagnostics.Attach(viewModel)`
-- Metrics: mutation rate, notification rate, coalescing ratio, dispatcher
-  latency, longest flush, UI-thread budget, dropped intermediate values
-- Hot-property detection
-- Actionable recommendations, e.g.
-  *"Positions generated 14,281 individual notifications/sec — use Batch() or
-  ReplaceSnapshot()."*
+Ships as the `Rambla.Diagnostics` package.
 
-This is what turns an invisible cost into an observable, provable one.
+- `StateDiagnostics.Attach(viewModel)` ✅ — pure-observer session, zero behaviour change
+- Rates: mutation rate, notification rate, flush rate, coalescing ratio ✅
+- Dispatcher latency, hops, longest flush, UI-thread budget ✅ (via `DiagnosticsScheduler`)
+- Hot-property detection ✅
+- Actionable recommendations ✅, e.g.
+  *"'Positions' generated 14,281 notifications/sec — batch with BeginUpdate(), or
+  for a collection use Batch()/ReplaceSnapshot()."*
+- `DiagnosticsSnapshot.ToString()` renders the console report ✅
+
+Built on an opt-in core hook (`IStateProbe`) that observes mutations and flushes
+without touching the frozen semantics. This is what turns an invisible cost into
+an observable, provable one.
+
+**Next for diagnostics:** per-property mutation/notification split surfaced in a
+WPF overlay control (currently console/programmatic only); dropped-intermediate
+counting per property.
 
 ## Phase 5 — Framework adapters
 
