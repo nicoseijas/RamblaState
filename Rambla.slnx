@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Rambla.Benchmarks/Rambla.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Rambla.Demo.MarketDashboard/Rambla.Demo.MarketDashboard.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Rambla.Generators/Rambla.Generators.csproj" />
+    <Project Path="src/Rambla.Wpf/Rambla.Wpf.csproj" />
+    <Project Path="src/Rambla/Rambla.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Rambla.Tests/Rambla.Tests.csproj" />
+  </Folder>
+</Solution>

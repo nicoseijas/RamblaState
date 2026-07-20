@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Rambla.Wpf</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rambla.Wpf</PackageId>
+    <Description>WPF dispatcher adapter for Rambla. Marshals coalesced state flushes onto the UI thread via the WPF Dispatcher.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rambla\Rambla.csproj" />
+  </ItemGroup>
+
+</Project>

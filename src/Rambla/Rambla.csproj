@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Rambla</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Rambla</PackageId>
+    <Description>High-frequency observable state for real-time .NET desktop applications. Thread-safe updates, batching, coalescing and diagnostics for UI state that changes faster than it can be rendered.</Description>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <!-- Ship the source generator inside the Rambla package. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Rambla.Generators\Rambla.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

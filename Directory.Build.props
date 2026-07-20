@@ -1,0 +1,34 @@
+<Project>
+
+  <!-- Shared settings for every project in the repository. Framework-specific
+       and package settings live in the individual .csproj / Directory.Packages.props. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Analyzers -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Packaging defaults; publishable libraries opt in with IsPackable=true -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Shared package/authorship metadata -->
+  <PropertyGroup>
+    <Product>Rambla</Product>
+    <Authors>Nicolás Seijas</Authors>
+    <Company>Nicolás Seijas</Company>
+    <Copyright>Copyright (c) 2026 Nicolás Seijas</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/nicoseijas/Rambla</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/nicoseijas/Rambla</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>mvvm;wpf;observable;state;real-time;high-frequency;dispatcher;trading;telemetry</PackageTags>
+  </PropertyGroup>
+
+</Project>
