@@ -22,6 +22,13 @@ namespace Rambla;
 /// snapshots when you need snapshot consistency.
 /// </para>
 /// <para>Threading: all members are safe to call from any thread.</para>
+/// <para>
+/// Frozen V1 contracts (see SEMANTICS.md): notification order within a flush is
+/// unspecified; a subscriber that throws fails fast but never wedges the engine;
+/// <c>SetField</c> uses <see cref="EqualityComparer{T}.Default"/> and only a real
+/// change counts as a mutation; the type owns no resources and is not
+/// <see cref="IDisposable"/> — scheduler lifetime is the caller's.
+/// </para>
 /// </remarks>
 public abstract class RamblaState : INotifyPropertyChanged
 {
