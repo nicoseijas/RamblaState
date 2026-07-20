@@ -9,11 +9,17 @@
     <IncludeBuildOutput>true</IncludeBuildOutput>
   </PropertyGroup>
 
-  <!-- Ship the source generator inside the Rambla package. -->
+  <!-- Apply the source generator while building Rambla itself. -->
   <ItemGroup>
     <ProjectReference Include="..\Rambla.Generators\Rambla.Generators.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Ship the generator inside the NuGet package so consumers get [State]. -->
+  <ItemGroup>
+    <None Include="..\Rambla.Generators\bin\$(Configuration)\netstandard2.0\Rambla.Generators.dll"
+          Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 
 </Project>

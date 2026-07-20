@@ -17,10 +17,13 @@
     </PackageReference>
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rambla\Rambla.csproj" />
+    <!-- Referenced directly (not as an analyzer) so tests can drive the generator. -->
+    <ProjectReference Include="..\..\src\Rambla.Generators\Rambla.Generators.csproj" />
   </ItemGroup>
 
 </Project>

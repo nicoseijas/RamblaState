@@ -171,11 +171,14 @@ it live.
 
 ## Status
 
-Early development: the core state engine (writes, batching, coalescing,
-schedulers, opt-in metrics) is implemented and covered by unit + concurrency
-stress tests; the WPF adapter and demo run; the `[State]` source generator is
-next. See [ROADMAP.md](./ROADMAP.md) for phases and [VISION.md](./VISION.md) for
-the thesis. Contributors: read [GUIDELINES.md](./GUIDELINES.md) first.
+Early but real: the core state engine (writes, batching, coalescing, schedulers,
+opt-in metrics) is implemented, its V1 semantics are **frozen**
+([SEMANTICS.md](./SEMANTICS.md)), and it is covered by unit + concurrency stress
+tests. The WPF adapter and the market dashboard demo run. The **`[State]` source
+generator (V1)** ships and is dogfooded by the demo. Next: high-frequency
+collections and diagnostics. See [ROADMAP.md](./ROADMAP.md) for phases and
+[VISION.md](./VISION.md) for the thesis. Contributors: read
+[GUIDELINES.md](./GUIDELINES.md) first.
 
 ## License
 

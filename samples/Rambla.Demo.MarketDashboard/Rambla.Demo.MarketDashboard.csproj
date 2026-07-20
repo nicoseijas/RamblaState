@@ -16,6 +16,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rambla\Rambla.csproj" />
     <ProjectReference Include="..\..\src\Rambla.Wpf\Rambla.Wpf.csproj" />
+    <!-- Apply the [State] generator to this sample (analyzers don't flow through
+         project references; a package consumer gets it automatically). -->
+    <ProjectReference Include="..\..\src\Rambla.Generators\Rambla.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

@@ -21,6 +21,11 @@ background writes → coalesced UI snapshots → diagnostics that prove
 
 The minimum that demonstrates real value. Nothing more.
 
+> **Status:** all five primitives implemented and tested; the market dashboard
+> demo runs; the `[State]` generator (V1) ships and is dogfooded by the demo. The
+> core semantics are frozen (see [SEMANTICS.md](./SEMANTICS.md)) and the
+> benchmark thesis is validated (see [BENCHMARKS.md](./BENCHMARKS.md)).
+
 1. **`RamblaState`** — the base class you inherit.
    ```csharp
    public partial class QuotesViewModel : RamblaState { }
