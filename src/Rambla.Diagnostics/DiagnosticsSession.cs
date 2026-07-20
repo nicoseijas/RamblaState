@@ -83,7 +83,14 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
         lock (_snapshotGate)
         {
             DateTimeOffset now = _clock.UtcNow;
+            // Clamp against a clock that steps backward (NTP correction, a fake
+            // clock in tests): a negative window would surface as a nonsensical
+            // Window and is treated as an empty window instead.
             double seconds = (now - _lastTime).TotalSeconds;
+            if (seconds < 0d)
+            {
+                seconds = 0d;
+            }
 
             long mutations = Interlocked.Read(ref _mutations);
             long notifications = Interlocked.Read(ref _notifications);

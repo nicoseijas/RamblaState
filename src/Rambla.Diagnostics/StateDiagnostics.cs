@@ -17,9 +17,11 @@ public static class StateDiagnostics
     /// </summary>
     /// <param name="state">The state to observe.</param>
     /// <param name="scheduler">
-    /// Optional. The <see cref="DiagnosticsScheduler"/> the state posts through. Pass
-    /// it to include dispatcher latency, hops, and an accurate UI-thread budget;
-    /// omit it and those are derived from notification-raise time only.
+    /// Optional. The <see cref="DiagnosticsScheduler"/> the state posts through — it
+    /// must be the very instance <paramref name="state"/> was constructed with, or
+    /// the dispatcher figures will all read zero while still being reported as
+    /// present. Pass it to include dispatcher latency, hops, and an accurate
+    /// UI-thread budget; omit it and those are derived from notification-raise time.
     /// </param>
     /// <param name="clock">Optional clock; defaults to <see cref="SystemClock.Instance"/>.</param>
     /// <param name="options">Optional thresholds; defaults to <see cref="DiagnosticsOptions.Default"/>.</param>

@@ -88,5 +88,12 @@ it changes none of the contracts above — notification order, coalescing,
 coherence, and exception behaviour are identical whether or not a probe is
 attached. When no probe is attached, the hot path pays a single volatile read.
 
+A probe is documented to never throw, but the engine does not trust it: a probe
+whose callback throws is **isolated** — its exception is swallowed and neither
+stops other probes nor prevents the flush from being scheduled. (This is stricter
+than the `PropertyChanged` contract, which fails fast: a diagnostics observer must
+never be able to affect the app it observes.)
+
 *Tested:* the suite asserts notification behaviour is unchanged with a probe
-attached, and that no-op writes are not reported as mutations.
+attached, that no-op writes are not reported as mutations, and that a throwing
+probe neither wedges the pipeline nor silences other probes.

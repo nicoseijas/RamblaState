@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using FluentAssertions;
 using Xunit;
 
@@ -79,5 +80,48 @@ public sealed class StateProbeTests
         var vm = new DiagTestState(new ManualStateScheduler());
         Action act = () => vm.AttachProbe(null!);
         act.Should().Throw<ArgumentNullException>();
+    }
+
+    private sealed class ThrowingProbe : IStateProbe
+    {
+        public void OnMutation(string propertyName) => throw new InvalidOperationException("probe bug");
+
+        public void OnFlush(IReadOnlyList<string> notifiedProperties, TimeSpan raiseDuration)
+            => throw new InvalidOperationException("probe bug");
+    }
+
+    [Fact]
+    public void A_throwing_probe_does_not_wedge_the_flush_pipeline()
+    {
+        var scheduler = new ManualStateScheduler();
+        var vm = new DiagTestState(scheduler);
+        var notified = new List<string>();
+        ((INotifyPropertyChanged)vm).PropertyChanged += (_, e) => notified.Add(e.PropertyName!);
+        using IDisposable _ = vm.AttachProbe(new ThrowingProbe());
+
+        // A write must not throw out of the setter even though the probe throws...
+        vm.Bid = 1m;
+        scheduler.Drain();
+        // ...and a later write must still schedule and deliver its notification.
+        vm.Ask = 2m;
+        scheduler.Drain();
+
+        notified.Should().Equal(nameof(DiagTestState.Bid), nameof(DiagTestState.Ask));
+    }
+
+    [Fact]
+    public void A_throwing_probe_does_not_silence_other_probes()
+    {
+        var scheduler = new ManualStateScheduler();
+        var vm = new DiagTestState(scheduler);
+        var good = new RecordingProbe();
+        using IDisposable _ = vm.AttachProbe(new ThrowingProbe());
+        using IDisposable __ = vm.AttachProbe(good);
+
+        vm.Bid = 1m;
+        scheduler.Drain();
+
+        good.Mutations.Should().ContainSingle();
+        good.Flushes.Should().Be(1);
     }
 }

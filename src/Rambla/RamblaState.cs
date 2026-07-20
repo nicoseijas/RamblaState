@@ -111,7 +111,18 @@ public abstract class RamblaState : INotifyPropertyChanged
         {
             for (int i = 0; i < probes.Length; i++)
             {
-                probes[i].OnMutation(propertyName);
+                // A probe is a pure observer and is documented to never throw. If
+                // one does anyway, isolate it: a misbehaving diagnostics probe must
+                // never prevent the flush below from being scheduled (which would
+                // silently and permanently wedge notifications for this instance).
+                try
+                {
+                    probes[i].OnMutation(propertyName);
+                }
+                catch
+                {
+                    // Swallowed by contract: observers cannot affect engine behaviour.
+                }
             }
         }
 
@@ -313,7 +324,16 @@ public abstract class RamblaState : INotifyPropertyChanged
             TimeSpan raiseDuration = handler is null ? TimeSpan.Zero : ElapsedSince(startTimestamp);
             for (int i = 0; i < probes.Length; i++)
             {
-                probes[i].OnFlush(names, raiseDuration);
+                // Isolate each probe: one throwing observer must not stop the others,
+                // nor propagate out of the flush onto the scheduler/UI thread.
+                try
+                {
+                    probes[i].OnFlush(names, raiseDuration);
+                }
+                catch
+                {
+                    // Swallowed by contract: observers cannot affect engine behaviour.
+                }
             }
         }
     }

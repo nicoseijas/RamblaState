@@ -19,7 +19,16 @@ namespace Rambla;
 /// <para>
 /// Callbacks arrive from arbitrary threads (a mutation is reported on the writing
 /// thread; a flush on the scheduler's thread), so an implementation must be
-/// thread-safe. Keep the work trivial — a probe runs on the hot path.
+/// thread-safe. Keep the work trivial — a probe runs on the hot path. A probe
+/// that throws is isolated by the engine (its exception is swallowed so it cannot
+/// change behaviour), but that is a safety net, not license to throw.
+/// </para>
+/// <para>
+/// No cross-thread ordering is guaranteed between callbacks: under concurrent
+/// writers, <see cref="OnFlush"/> may report a property before the
+/// <see cref="OnMutation"/> for that same change has run on the other thread. Do
+/// not build a probe that depends on seeing a property's mutation before its
+/// flush; treat each callback as an independent event.
 /// </para>
 /// </remarks>
 public interface IStateProbe
