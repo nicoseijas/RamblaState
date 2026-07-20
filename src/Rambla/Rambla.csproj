@@ -7,7 +7,13 @@
     <PackageId>Rambla</PackageId>
     <Description>High-frequency observable state for real-time .NET desktop applications. Thread-safe updates, batching, coalescing and diagnostics for UI state that changes faster than it can be rendered.</Description>
     <IncludeBuildOutput>true</IncludeBuildOutput>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
 
   <!-- Apply the source generator while building Rambla itself. -->
   <ItemGroup>

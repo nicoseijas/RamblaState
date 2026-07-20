@@ -25,10 +25,29 @@
     <Company>Nicolás Seijas</Company>
     <Copyright>Copyright (c) 2026 Nicolás Seijas</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/nicoseijas/Rambla</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/nicoseijas/Rambla</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/nicoseijas/RamblaState</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/nicoseijas/RamblaState.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>mvvm;wpf;observable;state;real-time;high-frequency;dispatcher;trading;telemetry</PackageTags>
+
+    <!-- Single source of truth for the version of every package. Override on the
+         command line for CI: dotnet pack -p:Version=0.2.0 -->
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <!-- Packaging quality: applied only when a project sets IsPackable=true.
+       These are plain properties, so they can live globally — they take effect
+       at pack time and are inert otherwise. -->
+  <PropertyGroup>
+    <!-- Reproducible, debuggable packages -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- Ship XML docs for IntelliSense; do not fail the build on undocumented
+         members (TreatWarningsAsErrors would otherwise turn CS1591 into an error). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
 </Project>

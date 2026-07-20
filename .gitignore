@@ -26,3 +26,6 @@ Thumbs.db
 
 # Original brainstorm — kept locally, not part of the project
 FIRST_APPROACH.md
+
+# NuGet pack output
+/artifacts/

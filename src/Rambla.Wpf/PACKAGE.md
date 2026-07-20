@@ -1,0 +1,43 @@
+# Rambla.Wpf
+
+WPF dispatcher adapter for **[Rambla](https://www.nuget.org/packages/Rambla)** —
+high-frequency observable state for real-time .NET desktop apps.
+
+Rambla's core is framework-agnostic and never references `Dispatcher`. This
+package supplies the `IStateScheduler` that marshals coalesced state flushes onto
+the WPF UI thread, at Background priority so high-frequency state never starves
+input or rendering.
+
+## Usage
+
+Install both packages, then install the scheduler once at startup on the UI
+thread:
+
+```csharp
+// App.xaml.cs
+using Rambla.Wpf;
+
+public partial class App : Application
+{
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        // Every RamblaState created without an explicit scheduler now flushes
+        // onto the WPF dispatcher.
+        DispatcherStateScheduler.InstallAsDefault();
+    }
+}
+```
+
+Your `RamblaState`-derived view models then update from any thread and bind
+exactly like any `INotifyPropertyChanged` object — Rambla coalesces the
+background writes into a few UI notifications per second.
+
+## Links
+
+- **Repository & docs:** https://github.com/nicoseijas/RamblaState
+- **Getting started (WPF):** https://github.com/nicoseijas/RamblaState/wiki/Getting-Started
+- **Market dashboard sample:** https://github.com/nicoseijas/RamblaState/tree/main/samples/Rambla.Demo.MarketDashboard
+
+Released under the [MIT License](https://github.com/nicoseijas/RamblaState/blob/main/LICENSE).

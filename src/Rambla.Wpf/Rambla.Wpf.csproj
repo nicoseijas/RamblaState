@@ -7,7 +7,13 @@
     <IsPackable>true</IsPackable>
     <PackageId>Rambla.Wpf</PackageId>
     <Description>WPF dispatcher adapter for Rambla. Marshals coalesced state flushes onto the UI thread via the WPF Dispatcher.</Description>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Rambla\Rambla.csproj" />
