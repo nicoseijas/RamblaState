@@ -23,3 +23,6 @@ BenchmarkDotNet.Artifacts/
 # OS
 .DS_Store
 Thumbs.db
+
+# Original brainstorm — kept locally, not part of the project
+FIRST_APPROACH.md
