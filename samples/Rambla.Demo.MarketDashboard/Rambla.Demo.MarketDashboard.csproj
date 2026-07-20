@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Rambla.Demo.MarketDashboard</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Sample/demo app: relax the library-grade analyzer gate to keep it approachable. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-minimum</AnalysisLevel>
+    <!-- Instance member bound from XAML (CA1822) and a switch-typed factory return (CA1859). -->
+    <NoWarn>$(NoWarn);CA1822;CA1859</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Rambla\Rambla.csproj" />
+    <ProjectReference Include="..\..\src\Rambla.Wpf\Rambla.Wpf.csproj" />
+  </ItemGroup>
+
+</Project>
