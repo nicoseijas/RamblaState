@@ -69,6 +69,17 @@ the equivalent of a `diagnostics.check()` for real-time UI state. Being able to
 show "18,420 mutations/sec collapsed into 58 notifications/sec, 99.7%
 coalesced, UI thread at 17% budget" is what sells the library.
 
+## The founding sentence
+
+> **Rambla does not make the notification cheaper. It avoids emitting it.**
+
+And its necessary corollary — the boundary of the whole project:
+
+> **Rambla is for state, not events.** Coalescing drops intermediate values on
+> purpose. If every intermediate value matters (fills, trades, log lines), Rambla
+> is the wrong tool. See [docs/philosophy.md](./docs/philosophy.md) for the
+> good-fit / poor-fit domains and the empirical entropy boundary.
+
 ## The flagship benchmark
 
 We measure the right thing. We will **not** try to win on nanoseconds per

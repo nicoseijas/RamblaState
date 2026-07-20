@@ -146,19 +146,28 @@ behind `IStateScheduler`.
 
 ## Proof
 
+The headline is architectural, not a multiplier:
+
+> **100,000 mutations → ~101 effective notifications — a ~99.9% reduction.**
+
+That collapse is what makes the downstream cost disappear. Indicative result at
+100,000 writes with a UI-like subscriber (convert + fan-out), from
+[BENCHMARKS.md](./BENCHMARKS.md):
+
+| Path             | Notifications | Mean       | Allocated |
+| ---------------- | ------------: | ---------: | --------: |
+| Naive            |       100,000 | ~11.0 ms   | 21,871 KB |
+| Rambla coalesced |         ~101  | ~1.0 ms    |     32 KB |
+
+Same producer load; ~11× faster and ~680× fewer allocations because the work was
+never emitted. **Honest caveat:** with a no-op subscriber the naive path wins on
+raw CPU (Rambla adds bookkeeping), and with a high-entropy stream — thousands of
+*distinct* properties per flush — coalescing can't help and Rambla loses. It is a
+tool for state that repeats faster than it renders, not for one-shot fan-outs.
+See [BENCHMARKS.md](./BENCHMARKS.md) and [docs/philosophy.md](./docs/philosophy.md).
+
 Run the [market dashboard demo](./samples/Rambla.Demo.MarketDashboard) to watch
-the same synthetic feed cost a fraction of the UI work under Rambla, or see
-[BENCHMARKS.md](./BENCHMARKS.md) for the flagship numbers. Indicative result at
-100,000 writes with a realistic per-notification cost:
-
-| Path             | Mean         | Allocated |
-| ---------------- | -----------: | --------: |
-| Naive            | ~2.2 s       | 2,344 KB  |
-| Rambla coalesced | ~2.2 ms      |    12 KB  |
-
-Same producer load, ~1000× less downstream UI work, ~200× fewer allocations.
-(With a no-op subscriber the naive path wins on raw CPU — Rambla is not a faster
-setter, it just stops emitting notifications nobody can render. See BENCHMARKS.md.)
+it live.
 
 ## Status
 
