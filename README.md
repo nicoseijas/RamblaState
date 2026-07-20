@@ -1,5 +1,7 @@
 # Rambla
 
+[![CI](https://github.com/nicoseijas/RamblaState/actions/workflows/ci.yml/badge.svg)](https://github.com/nicoseijas/RamblaState/actions/workflows/ci.yml)
+
 > **High-frequency observable state for real-time .NET desktop applications.**
 >
 > Thread-safe updates, batching, coalescing and diagnostics for UI state that
@@ -43,11 +45,15 @@ values and batching notifications into a single dispatcher hop per frame.
 ```csharp
 public partial class MarketViewModel : RamblaState
 {
-    [State] public decimal Bid { get; set; }
-    [State] public decimal Ask { get; set; }
-    [State] public decimal PnL { get; set; }
+    [State] private decimal _bid;   // generates an observable `Bid` property
+    [State] private decimal _ask;   // → `Ask`
+    [State] private decimal _pnl;   // → `PnL`
 }
 ```
+
+You annotate the backing field; the generator emits the observable property
+(stripping the leading underscore, `_bid` → `Bid`) and routes its setter through
+Rambla's batching and coalescing.
 
 From any background worker:
 
@@ -70,6 +76,8 @@ worker writes → dirty state → coalesce → UI flush (~16 ms) → batched not
 
 ## What makes it different
 
+**Shipping today:**
+
 - **Coalescing** — latest value wins. A price that ticks five times in 5 ms
   notifies the UI once, with the final value.
 - **Explicit batching** — coalesce writes into one *coherent notification pass*:
@@ -77,27 +85,41 @@ worker writes → dirty state → coalesce → UI flush (~16 ms) → batched not
   final values together, not on a half-applied `Bid`/stale `Ask`. (This is
   notification coherence, not cross-thread state atomicity — use snapshots for
   that.)
-- **Snapshots** — publish an immutable snapshot as a single consistent unit;
-  the state-atomicity path, ideal for market data and telemetry feeds.
-- **High-frequency collections** — `RamblaList<T>` with batched
-  changes and efficient diffing, instead of one notification per item.
-- **Frequency policy** — throttling becomes a property of the *state*
-  (`MaxRefreshRate = 60`), not something every ViewModel re-implements.
-- **Priorities** — a framework-neutral abstraction over dispatcher priority
-  levels, so real-time data outranks background text.
-- **Async state commands** — commands with built-in busy/error/cancel
-  lifecycle and latest-wins semantics.
-- **Diagnostics** — measure how much work you *avoided*: mutation rate,
-  notification rate, coalescing ratio, dispatcher latency, hot properties.
+- **`[State]` source generator** — annotate a backing field, get an observable
+  property routed through the batching/coalescing engine.
+- **Framework-neutral scheduling** — the core never references `Dispatcher`;
+  integration is an `IStateScheduler` adapter (WPF ships today).
+- **Opt-in metrics** — turn on lifetime counters (`Metrics`) to see how many
+  mutations coalesced away.
 
-## The flagship: diagnostics
+**On the roadmap** (designed, not yet shipped — see [ROADMAP.md](./ROADMAP.md)):
+
+- **Snapshots** *(planned)* — publish an immutable snapshot as a single
+  consistent unit; the state-atomicity path for market data and telemetry feeds.
+- **High-frequency collections** *(planned)* — `RamblaList<T>` with batched
+  changes and efficient diffing, instead of one notification per item.
+- **Frequency policy** *(planned)* — throttling as a property of the *state*
+  (`MaxRefreshRate`), not something every ViewModel re-implements. *(The option
+  exists today but is reserved; the built-in throttling scheduler is Phase 1.)*
+- **Priorities** *(planned)* — a framework-neutral abstraction over dispatcher
+  priority levels, so real-time data outranks background text.
+- **Async state commands** *(planned)* — commands with built-in busy/error/cancel
+  lifecycle and latest-wins semantics.
+- **Rich diagnostics** *(planned)* — a live attachable overlay; see below.
+
+## Where this is going: diagnostics
+
+The core already exposes opt-in coalescing metrics per instance. The flagship
+goal (Phase 4) is a live, attachable diagnostics overlay that turns the invisible
+cost of pushing background state to the UI into something you can observe and
+prove:
 
 ```csharp
-StateDiagnostics.Attach(viewModel);
+StateDiagnostics.Attach(viewModel);   // planned — Phase 4
 ```
 
 ```
-MarketViewModel
+MarketViewModel                         ← target output, not yet implemented
   Incoming state mutations : 18,420 / sec
   UI notifications         :     58 / sec
   Coalescing               :  99.68 %
@@ -109,8 +131,8 @@ MarketViewModel
     Recommendation: use Batch() or ReplaceSnapshot().
 ```
 
-Rambla turns something invisible — the cost of pushing background state to the
-UI — into something you can observe and prove.
+Today you can already read the same coalescing ratio programmatically via the
+opt-in `Metrics` counters ([BENCHMARKS.md](./BENCHMARKS.md) shows them in use).
 
 ## Built for
 

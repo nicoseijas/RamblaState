@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    # WPF (net10.0-windows) is part of the solution, so the build must run on Windows.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET (pinned by global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          # Fallback if the exact pinned SDK isn't cached on the runner yet.
+          dotnet-version: 10.0.x
+          dotnet-quality: preview
+
+      - name: Restore
+        run: dotnet restore Rambla.slnx
+
+      - name: Build
+        run: dotnet build Rambla.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Rambla.slnx --configuration Release --no-build --verbosity normal

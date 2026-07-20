@@ -7,8 +7,9 @@ namespace Rambla;
 /// <c>_bid</c> produces the property <c>Bid</c>.
 /// </summary>
 /// <remarks>
-/// This is a marker only; the generator implementation lands in Phase 1. Until
-/// then, declare properties by hand with <see cref="RamblaState.SetField{T}"/>.
+/// This is a marker only; the observable property is emitted at compile time by
+/// the Rambla source generator. You can also declare properties by hand with
+/// <see cref="RamblaState.SetField{T}"/> when you need custom setter logic.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
 public sealed class StateAttribute : Attribute
