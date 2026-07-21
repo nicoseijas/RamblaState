@@ -40,9 +40,12 @@ The minimum that demonstrates real value. Nothing more.
    ```
 4. **`StateScheduler`** — captures the UI context automatically and marshals
    background writes into UI notifications, via `IStateScheduler`.
-5. **Coalescing** — latest-value-wins, configurable refresh rate.
+5. **Coalescing** — latest-value-wins. A configurable refresh rate is the
+   plan; `RamblaOptions.MaxRefreshRate` exists but is **reserved** — no shipped
+   scheduler applies it yet (the demo's `ThrottledDispatcherScheduler` sample
+   shows the pattern).
    ```csharp
-   RamblaOptions.Default.MaxRefreshRate = 60;
+   RamblaOptions.Default.MaxRefreshRate = 60; // reserved for the throttling scheduler
    ```
 
 **Flagship demo** — a real-time market dashboard:

@@ -36,6 +36,9 @@ reduction.
 - The `RamblaState` engine: thread-safe `SetField`, `BeginUpdate` batching,
   coalesced flush.
 - The `[State]` source generator.
+- `RamblaList<T>`: a high-frequency observable collection — thread-safe writes,
+  one coalesced flush raising the minimum `CollectionChanged` events
+  (`Batch`, `ReplaceSnapshot` with a minimal diff, single-`Reset` fallback).
 - `IStateScheduler` with immediate + synchronization-context implementations.
 - Opt-in coalescing metrics.
 
