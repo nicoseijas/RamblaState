@@ -1,6 +1,10 @@
 # Rambla
 
 [![CI](https://github.com/nicoseijas/RamblaState/actions/workflows/ci.yml/badge.svg)](https://github.com/nicoseijas/RamblaState/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Rambla?logo=nuget&label=NuGet)](https://www.nuget.org/packages/Rambla)
+[![Downloads](https://img.shields.io/nuget/dt/Rambla?label=downloads)](https://www.nuget.org/packages/Rambla)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-netstandard2.0%20%7C%20net10.0-512BD4?logo=dotnet)](https://github.com/nicoseijas/RamblaState)
 
 > **High-frequency observable state for real-time .NET desktop applications.**
 >
