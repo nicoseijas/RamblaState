@@ -123,10 +123,16 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
             throw new ArgumentNullException(nameof(items));
         }
 
+        // Materialize before touching the pending target: enumerating the caller's
+        // sequence can throw (or be slow, and it would run under the write lock).
+        // A partially-applied replacement must never linger in the target, where a
+        // later unrelated flush would silently commit it.
+        List<T> snapshot = new(items);
+
         Mutate(list =>
         {
             list.Clear();
-            list.AddRange(items);
+            list.AddRange(snapshot);
         });
     }
 
@@ -210,7 +216,10 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
         lock (_gate)
         {
             _flushScheduled = false;
-            if (_flushing || !_dirty)
+            // _batchDepth: a flush armed before a batch opened may be dispatched
+            // while that batch is still open; delivering it would raise the
+            // batch's own writes mid-batch. Defer — EndUpdate re-arms on close.
+            if (_flushing || _batchDepth > 0 || !_dirty)
             {
                 return;
             }
@@ -223,7 +232,9 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
             T[] target;
             lock (_gate)
             {
-                if (!_dirty)
+                // Also stop draining if a batch opened mid-drain: the target now
+                // accumulates that batch's writes, which must not leak early.
+                if (!_dirty || _batchDepth > 0)
                 {
                     _flushing = false; // cleared under _gate, atomically with the empty check
                     return;

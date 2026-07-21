@@ -147,6 +147,50 @@ public sealed class RamblaListTests
     }
 
     [Fact]
+    public void Flush_armed_before_a_batch_does_not_run_while_the_batch_is_open()
+    {
+        (RamblaList<int> list, ManualStateScheduler scheduler, List<NotifyCollectionChangedEventArgs> events) = Build();
+
+        list.Add(1); // arms and posts a flush before the batch opens
+
+        using (list.BeginUpdate())
+        {
+            list.Add(2); // written inside the batch
+
+            // The dispatcher happens to process the pre-batch flush now. It must
+            // defer: delivering here would raise the batched add mid-batch.
+            scheduler.Drain();
+            events.Should().BeEmpty("no event may be raised while a batch is open");
+        }
+
+        scheduler.Drain();
+        list.Should().Equal(1, 2);
+        events.Should().HaveCount(2, "closing the batch flushes everything in one coherent pass");
+    }
+
+    [Fact]
+    public void ReplaceSnapshot_that_throws_mid_enumeration_has_no_effect()
+    {
+        (RamblaList<int> list, ManualStateScheduler scheduler, _) = Build(new[] { 100, 200, 300 });
+
+        static IEnumerable<int> Faulty()
+        {
+            yield return 1;
+            yield return 2;
+            throw new InvalidOperationException("source failed mid-enumeration");
+        }
+
+        ((Action)(() => list.ReplaceSnapshot(Faulty()))).Should().Throw<InvalidOperationException>();
+
+        // The failed replacement must not linger in the pending target: a later,
+        // unrelated mutation must not silently commit the partial snapshot.
+        list.Add(999);
+        scheduler.Drain();
+
+        list.Should().Equal(100, 200, 300, 999);
+    }
+
+    [Fact]
     public void Count_and_indexer_property_changes_are_raised()
     {
         (RamblaList<int> list, ManualStateScheduler scheduler, _) = Build();

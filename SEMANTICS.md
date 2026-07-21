@@ -50,9 +50,16 @@ attempts. `Price = 100; Price = 100; Price = 100;` is one mutation, not three.
 - With nested batches, only disposing the outermost scope enables scheduling.
 - Scopes may be disposed in **any order** (the depth is a counter, not a stack).
 - Disposing a scope more than once is a **no-op**.
+- **No flush runs while a batch is open.** A flush that was armed and posted
+  *before* the batch opened may be dispatched while the batch is still in
+  progress; it defers entirely (delivering it would raise the batch's own
+  accumulated writes mid-batch). Closing the outermost scope re-arms a fresh
+  flush, so the pre-batch writes are simply delivered together with the batch —
+  coherence is preserved at the cost of that one deferral.
 
 *Tested:* `ConcurrencyTests.Nested_BeginUpdate_*`, `*_out_of_order_*`,
-`Double_dispose_*`; `SemanticsContractTests.Empty_batch_schedules_no_flush`.
+`Double_dispose_*`; `SemanticsContractTests.Empty_batch_schedules_no_flush`,
+`SemanticsContractTests.Flush_armed_before_a_batch_does_not_run_while_the_batch_is_open`.
 
 ## 5. Scheduler may be synchronous or deferred
 
@@ -79,7 +86,28 @@ a deferred `ManualStateScheduler`.
 This is a deliberate V1 decision to keep the base class free of accidental
 lifecycle. If disposal is ever needed, it will be an explicit, additive opt-in.
 
-## Observability — probes do not change behaviour
+## Cross-thread reads — stale, and possibly torn for wide types
+
+A property getter reads its backing field directly, with no synchronization —
+that is what keeps the read path free. Two consequences for a reader on a
+different thread than the writer:
+
+- **Staleness.** A concurrent reader may see a value from before the latest
+  write, or a new value beside a stale one mid-batch. This is the documented
+  absence of cross-thread state atomicity.
+- **Tearing.** For types wider than a machine word (`decimal`, large structs,
+  `DateTime`/`long` on 32-bit), the runtime does not guarantee atomic reads: a
+  read that races a write can observe a mix of old and new bytes — a value that
+  was **never written**. The window is nanoseconds, but at high write rates the
+  exposure is real.
+
+Reads made **in reaction to a notification** (the normal binding path) are safe
+on both counts: the flush acquires the state's lock before raising, which
+establishes happens-before with every write it notifies. Tearing only concerns
+reads that race the writer from another thread outside that path. If you need
+race-free wide values, read them from a `PropertyChanged` handler, publish an
+immutable snapshot object (reference writes are atomic), or keep the value in a
+word-sized type.
 
 `RamblaState.AttachProbe(IStateProbe)` attaches a diagnostics observer (used by
 the `Rambla.Diagnostics` package). A probe is a **pure observer**: it is invoked
@@ -114,6 +142,10 @@ the change events already raised.
    by `EqualityComparer<T>.Default` and raises the **minimum** `Add`/`Remove`/
    `Replace` events — or a single `Reset` when more than `ResetThreshold` (default
    32) elements changed. A net-zero batch (add then remove) raises nothing.
+   Batching follows §4, including its deferral rule: no flush applies while a
+   batch is open, even one armed before the batch. `ReplaceSnapshot` materializes
+   its argument up front — if enumerating the source throws, the list is left
+   exactly as it was, with nothing pending.
 3. **No moves in V1.** Reordering the same instances is reported as replacements,
    not `Move` events. Keep stable row instances and update their fields via
    `RamblaState`; the list then changes only on real add/remove.
@@ -128,5 +160,6 @@ the change events already raised.
 
 *Tested:* deferred visibility, add/remove/replace index correctness, prefix/suffix
 minimal diffs, Reset fallback, net-zero coalescing, concurrent writers landing in
-the final state, and no corruption under concurrent/reentrant flush on an inline
-scheduler.
+the final state, no corruption under concurrent/reentrant flush on an inline
+scheduler, no flush delivery while a batch is open, and `ReplaceSnapshot` having
+no effect when its source throws mid-enumeration.

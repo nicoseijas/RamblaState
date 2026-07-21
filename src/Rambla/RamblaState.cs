@@ -278,7 +278,10 @@ public abstract class RamblaState : INotifyPropertyChanged
             // flush and cannot be lost.
             _flushScheduled = false;
 
-            if (_dirty.Count == 0)
+            // A flush armed before a batch opened may be dispatched while that
+            // batch is still open. Delivering it would notify the batch's own
+            // writes mid-batch, so it defers entirely: EndUpdate re-arms on close.
+            if (_batchDepth > 0 || _dirty.Count == 0)
             {
                 return;
             }
