@@ -39,6 +39,8 @@ reduction.
 - `RamblaList<T>`: a high-frequency observable collection — thread-safe writes,
   one coalesced flush raising the minimum `CollectionChanged` events
   (`Batch`, `ReplaceSnapshot` with a minimal diff, single-`Reset` fallback).
+- `RamblaDictionary<K,V>`: the keyed companion — insertion-ordered entries,
+  latest-value-wins per key, same coalesced minimum-diff flush.
 - `IStateScheduler` with immediate + synchronization-context implementations.
 - Opt-in coalescing metrics.
 

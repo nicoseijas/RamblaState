@@ -73,7 +73,7 @@ public readonly struct DiagnosticsSnapshot
     /// <summary>Fraction of mutations coalescing dropped in the window, 0..1.</summary>
     public double CoalescingRatio { get; }
 
-    /// <summary>Longest single UI flush in the window.</summary>
+    /// <summary>Longest single UI flush observed since the session attached (not per window).</summary>
     public TimeSpan LongestFlush { get; }
 
     /// <summary>Fraction of wall time the UI thread spent flushing, 0..1.</summary>

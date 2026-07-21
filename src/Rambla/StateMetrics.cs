@@ -10,7 +10,7 @@ namespace Rambla;
 public readonly struct StateMetrics : IEquatable<StateMetrics>
 {
     /// <param name="mutations">Successful value changes accepted by the state.</param>
-    /// <param name="flushes">Flush passes that produced at least one notification.</param>
+    /// <param name="flushes">Coalesced flush passes that applied dirty state.</param>
     /// <param name="notifications"><see cref="System.ComponentModel.INotifyPropertyChanged.PropertyChanged"/> events raised.</param>
     public StateMetrics(long mutations, long flushes, long notifications)
     {
@@ -22,7 +22,10 @@ public readonly struct StateMetrics : IEquatable<StateMetrics>
     /// <summary>Value changes accepted by the state (a no-op write is not counted).</summary>
     public long Mutations { get; }
 
-    /// <summary>Flush passes that delivered at least one notification.</summary>
+    /// <summary>
+    /// Coalesced flush passes that applied dirty state — counted whether or not
+    /// any <c>PropertyChanged</c> subscriber was attached at the time.
+    /// </summary>
     public long Flushes { get; }
 
     /// <summary><c>PropertyChanged</c> events actually raised to observers.</summary>

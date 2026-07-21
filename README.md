@@ -94,16 +94,16 @@ worker writes → dirty state → coalesce → UI flush (~16 ms) → batched not
 - **Live diagnostics** — attach `StateDiagnostics.Attach(vm)` (the
   `Rambla.Diagnostics` package) for rates, coalescing ratio, hot properties,
   dispatcher latency and actionable recommendations. See below.
-- **High-frequency collections** — `RamblaList<T>` accepts writes from any thread
-  and coalesces a burst into the minimum `CollectionChanged` events per flush
-  (`Batch`, `ReplaceSnapshot` with a minimal diff), instead of one per item.
+- **High-frequency collections** — `RamblaList<T>` and `RamblaDictionary<K,V>`
+  accept writes from any thread and coalesce a burst into the minimum
+  `CollectionChanged` events per flush (`Batch`, `ReplaceSnapshot` with a minimal
+  diff; latest-value-wins per key), instead of one per item.
 
 **On the roadmap** (designed, not yet shipped — see [ROADMAP.md](./ROADMAP.md)):
 
 - **Snapshots** *(planned)* — publish an immutable scalar-state snapshot as a
   single consistent unit; the cross-thread state-atomicity path. *(For
   collections, `RamblaList<T>.ReplaceSnapshot` ships today.)*
-- **`RamblaDictionary<K,V>`** *(planned)* — the keyed companion to `RamblaList<T>`.
 - **Frequency policy** *(planned)* — throttling as a property of the *state*
   (`MaxRefreshRate`), not something every ViewModel re-implements. *(The option
   exists today but is reserved; the built-in throttling scheduler is Phase 1.)*
@@ -206,9 +206,10 @@ Early but real: the core state engine (writes, batching, coalescing, schedulers,
 opt-in metrics) is implemented, its V1 semantics are **frozen**
 ([SEMANTICS.md](./SEMANTICS.md)), and it is covered by unit + concurrency stress
 tests. The WPF adapter and the market dashboard demo run. The **`[State]` source
-generator (V1)** ships and is dogfooded by the demo. **`RamblaList<T>`**
-(high-frequency collections) and the **`Rambla.Diagnostics`** package are shipped.
-Next: `RamblaDictionary<K,V>`. See [ROADMAP.md](./ROADMAP.md) for phases and
+generator (V1)** ships and is dogfooded by the demo. High-frequency collections
+(**`RamblaList<T>`**, **`RamblaDictionary<K,V>`**) and the **`Rambla.Diagnostics`**
+package are shipped. Next: async state lifecycle (Phase 3). See
+[ROADMAP.md](./ROADMAP.md) for phases and
 [VISION.md](./VISION.md) for the thesis. Contributors: read
 [GUIDELINES.md](./GUIDELINES.md) first.
 

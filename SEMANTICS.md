@@ -163,3 +163,38 @@ minimal diffs, Reset fallback, net-zero coalescing, concurrent writers landing i
 the final state, no corruption under concurrent/reentrant flush on an inline
 scheduler, no flush delivery while a batch is open, and `ReplaceSnapshot` having
 no effect when its source throws mid-enumeration.
+
+## Collections — `RamblaDictionary<TKey,TValue>`
+
+The keyed companion to `RamblaList<T>`. All five `RamblaList` rules above apply
+unchanged (deferred reads, one coalesced flush, no moves, threading, serialized
+flush execution — batching follows §4 including its deferral rule). On top of
+them:
+
+1. **Ordered by insertion.** Entries expose a stable order so change events carry
+   real indices: new keys append, updating an existing key preserves its position,
+   and a key removed and re-added (even within one batch) appends at the end.
+   Enumeration yields ordered `KeyValuePair<TKey,TValue>` entries.
+2. **Latest value wins per key.** A key written N times between flushes raises at
+   most one `Replace`, carrying the final value. A no-op rewrite (same value by
+   `EqualityComparer<TValue>.Default`) coalesces to nothing.
+3. **Mutators report against the pending target.** `Add` throws — and `TryAdd`
+   returns `false` — for a key already *pending*, and `Remove` returns whether the
+   key was *pending*, so back-to-back writes compose without waiting for a flush.
+   Reads (`this[key]`, `TryGetValue`, `ContainsKey`, `Keys`, `Values`) remain the
+   flushed state, like every other read.
+4. **Duplicate rejection is atomic.** `ReplaceSnapshot` materializes and validates
+   its argument up front: a duplicate key (or a source that throws mid-enumeration)
+   leaves the dictionary exactly as it was, with nothing pending. The same
+   validation applies to the constructor's initial entries.
+5. **Keyed reads converge with events.** During a granular diff the visible list
+   can transiently hold a key at two positions (a replace resolved by a later
+   event); the keyed view drops a key only when no listed entry carries it, so
+   after the flush the map and the ordered entries always agree.
+
+*Tested:* deferred visibility, per-key coalescing into one Replace, insertion
+order (append / preserve-on-update / re-append after remove), pending-target
+`Add`/`TryAdd`/`Remove` semantics, net-zero batches, Reset fallback, minimal
+snapshot diffs, atomic rejection of throwing/duplicate snapshots, flush deferral
+while a batch is open, keyed/ordered read consistency across flushes, and
+concurrent writers landing in the final state.
