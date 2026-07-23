@@ -39,27 +39,27 @@ public static class Workload
                 return;
 
             case SubscriberKind.Cpu:
-            {
-                double acc = _numericSink;
-                for (int i = 0; i < work; i++)
                 {
-                    acc = (acc * 1.0000001) + 1.0;
-                }
+                    double acc = _numericSink;
+                    for (int i = 0; i < work; i++)
+                    {
+                        acc = (acc * 1.0000001) + 1.0;
+                    }
 
-                _numericSink = acc;
-                return;
-            }
+                    _numericSink = acc;
+                    return;
+                }
 
             case SubscriberKind.UiFanout:
-            {
-                // ~5 observers (cells/derived props), each converting the value.
-                for (int i = 0; i < 5; i++)
                 {
-                    _stringSink = value.ToString("F2", CultureInfo.InvariantCulture);
-                }
+                    // ~5 observers (cells/derived props), each converting the value.
+                    for (int i = 0; i < 5; i++)
+                    {
+                        _stringSink = value.ToString("F2", CultureInfo.InvariantCulture);
+                    }
 
-                return;
-            }
+                    return;
+                }
 
             default:
                 return;
