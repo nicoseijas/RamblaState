@@ -24,6 +24,12 @@ jobs:
       - name: Restore
         run: dotnet restore Rambla.slnx
 
+      # dotnet format evaluates the workspace in the default (Debug) configuration,
+      # and the [State] generator is an analyzer ProjectReference — its DLL must
+      # exist or every generated member comes up missing (CS0535).
+      - name: Build generators (needed by dotnet format)
+        run: dotnet build src/Rambla.Generators/Rambla.Generators.csproj --no-restore
+
       - name: Verify formatting
         run: dotnet format Rambla.slnx --verify-no-changes --no-restore
 
