@@ -48,11 +48,19 @@ public sealed class DiagnosticsScheduler : IStateScheduler
             Interlocked.Add(ref _latencyTicks, latency);
             UpdateMax(ref _maxLatencyTicks, latency);
 
-            flush();
-
-            long flushDuration = Stopwatch.GetTimestamp() - startedAt;
-            Interlocked.Add(ref _flushTicks, flushDuration);
-            UpdateMax(ref _maxFlushTicks, flushDuration);
+            // finally, not sequential code: a flush that throws (fail-fast
+            // subscriber contract) already counted as a hop above, so its
+            // execution time must land too or the UI-budget metric skews low.
+            try
+            {
+                flush();
+            }
+            finally
+            {
+                long flushDuration = Stopwatch.GetTimestamp() - startedAt;
+                Interlocked.Add(ref _flushTicks, flushDuration);
+                UpdateMax(ref _maxFlushTicks, flushDuration);
+            }
         });
     }
 

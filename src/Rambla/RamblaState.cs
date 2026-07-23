@@ -131,10 +131,32 @@ public abstract class RamblaState : INotifyPropertyChanged
         // is held (reentrancy / deadlock risk if a handler touches the state).
         if (schedule)
         {
-            _scheduler.Post(Flush);
+            ScheduleFlush();
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Posts the flush, disarming <see cref="_flushScheduled"/> if the scheduler
+    /// rejects the post. Without the rollback, every later write would assume a
+    /// flush is already pending and the pipeline would silently wedge forever.
+    /// </summary>
+    private void ScheduleFlush()
+    {
+        try
+        {
+            _scheduler.Post(Flush);
+        }
+        catch
+        {
+            lock (_gate)
+            {
+                _flushScheduled = false;
+            }
+
+            throw;
+        }
     }
 
     /// <summary>
@@ -248,7 +270,7 @@ public abstract class RamblaState : INotifyPropertyChanged
 
         if (schedule)
         {
-            _scheduler.Post(Flush);
+            ScheduleFlush();
         }
     }
 

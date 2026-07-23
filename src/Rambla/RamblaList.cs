@@ -54,6 +54,7 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
     private bool _flushScheduled;
     private bool _dirty;
     private bool _flushing; // true while a flush is applying to _view; serializes flush execution
+    private bool _recoveryPosted; // a recovery flush is in flight after a throwing handler; bounds auto-retry to one
 
     /// <summary>Raised, coalesced per flush, when the visible contents change.</summary>
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
@@ -176,7 +177,7 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
 
         if (schedule)
         {
-            _scheduler.Post(Flush);
+            ScheduleFlush();
         }
     }
 
@@ -190,7 +191,29 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
 
         if (schedule)
         {
+            ScheduleFlush();
+        }
+    }
+
+    /// <summary>
+    /// Posts the flush, disarming <see cref="_flushScheduled"/> if the scheduler
+    /// rejects the post. Without the rollback, every later write would assume a
+    /// flush is already pending and the pipeline would silently wedge forever.
+    /// </summary>
+    private void ScheduleFlush()
+    {
+        try
+        {
             _scheduler.Post(Flush);
+        }
+        catch
+        {
+            lock (_gate)
+            {
+                _flushScheduled = false;
+            }
+
+            throw;
         }
     }
 
@@ -237,6 +260,7 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
                 if (!_dirty || _batchDepth > 0)
                 {
                     _flushing = false; // cleared under _gate, atomically with the empty check
+                    _recoveryPosted = false; // drain completed: auto-recovery is available again
                     return;
                 }
 
@@ -250,11 +274,27 @@ public sealed class RamblaList<T> : IReadOnlyList<T>, IList, INotifyCollectionCh
             }
             catch
             {
-                // Leave the engine flushable: a partial flush is reconciled by the
-                // next flush's diff (old _view vs newest target). Fail-fast otherwise.
+                // Fail-fast, but never orphan the aborted transition: mark the
+                // work pending again and arm one recovery flush, so the visible
+                // contents reconcile (old _view vs newest target) without waiting
+                // for an unrelated mutation. A single retry, gated by
+                // _recoveryPosted, keeps a handler that always throws from
+                // looping (or recursing under an inline scheduler).
+                bool schedule;
                 lock (_gate)
                 {
                     _flushing = false;
+                    _dirty = true;
+                    schedule = !_recoveryPosted && TryArmFlushNoLock();
+                    if (schedule)
+                    {
+                        _recoveryPosted = true;
+                    }
+                }
+
+                if (schedule)
+                {
+                    ScheduleFlush();
                 }
 
                 throw;

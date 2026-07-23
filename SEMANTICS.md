@@ -18,7 +18,13 @@ Guaranteed regardless:
   trades completeness of that one flush for not hiding the error. Their values
   are already applied to the fields; the next write to those properties notifies.
 
-*Tested:* `ConcurrencyTests.Throwing_subscriber_does_not_wedge_the_state`.
+The same never-wedged guarantee covers the scheduler boundary: if
+`IStateScheduler.Post` itself throws, the exception propagates to the writer,
+but the armed-flush flag is rolled back — a later mutation re-arms and re-posts
+normally instead of assuming a flush is still pending.
+
+*Tested:* `ConcurrencyTests.Throwing_subscriber_does_not_wedge_the_state`,
+`FaultToleranceTests.State_write_survives_a_scheduler_that_rejects_the_post`.
 
 ## 2. Notification order — unspecified
 
@@ -157,19 +163,30 @@ the change events already raised.
    at a time, even under an inline scheduler with concurrent writers, or when a
    `CollectionChanged` handler mutates the list re-entrantly. A flush that finds one
    already running bails out; the running flusher drains all pending changes.
+6. **Handler exceptions — fail-fast, never orphaned.** A `CollectionChanged`
+   handler that throws aborts the flush and the exception propagates (§1). Unlike
+   `RamblaState` — where the values are already in the fields and only
+   notifications are lost — an aborted collection flush leaves the visible
+   contents mid-transition, so the engine marks the work pending again and
+   schedules **one** recovery flush; its diff (old view vs newest target)
+   reconciles the remainder without waiting for an unrelated mutation. The retry
+   is single-shot per failure: a handler that always throws fails on each attempt
+   without looping (or recursing under an inline scheduler). And as in §1, a
+   scheduler whose `Post` throws never leaves the flush flag armed.
 
 *Tested:* deferred visibility, add/remove/replace index correctness, prefix/suffix
 minimal diffs, Reset fallback, net-zero coalescing, concurrent writers landing in
 the final state, no corruption under concurrent/reentrant flush on an inline
-scheduler, no flush delivery while a batch is open, and `ReplaceSnapshot` having
-no effect when its source throws mid-enumeration.
+scheduler, no flush delivery while a batch is open, `ReplaceSnapshot` having
+no effect when its source throws mid-enumeration, and recovery after a throwing
+handler / a rejected post (`FaultToleranceTests`).
 
 ## Collections — `RamblaDictionary<TKey,TValue>`
 
-The keyed companion to `RamblaList<T>`. All five `RamblaList` rules above apply
+The keyed companion to `RamblaList<T>`. All six `RamblaList` rules above apply
 unchanged (deferred reads, one coalesced flush, no moves, threading, serialized
-flush execution — batching follows §4 including its deferral rule). On top of
-them:
+flush execution, fail-fast-but-recovered handler exceptions — batching follows
+§4 including its deferral rule). On top of them:
 
 1. **Ordered by insertion.** Entries expose a stable order so change events carry
    real indices: new keys append, updating an existing key preserves its position,

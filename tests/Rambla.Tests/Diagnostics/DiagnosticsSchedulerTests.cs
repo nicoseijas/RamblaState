@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FluentAssertions;
 using Rambla.Diagnostics;
 using Xunit;
@@ -42,6 +43,33 @@ public sealed class DiagnosticsSchedulerTests
         s.DispatcherHopsPerSecond.Should().Be(2d);
         s.AverageDispatcherLatency.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
         s.ToString().Should().Contain("Dispatcher hops");
+    }
+
+    [Fact]
+    public void A_throwing_flush_still_records_its_execution_time()
+    {
+        var inner = new ManualStateScheduler();
+        var scheduler = new DiagnosticsScheduler(inner);
+
+        scheduler.Post(() =>
+        {
+            // Spin for at least one Stopwatch tick so the recorded duration
+            // cannot round to zero, then fail like a fail-fast subscriber.
+            long start = Stopwatch.GetTimestamp();
+            while (Stopwatch.GetTimestamp() == start)
+            {
+            }
+
+            throw new InvalidOperationException("boom");
+        });
+
+        Action drain = inner.Drain;
+        drain.Should().Throw<InvalidOperationException>();
+
+        DispatcherCounters counters = scheduler.ReadCounters();
+        counters.Hops.Should().Be(1);
+        counters.FlushTicks.Should().BePositive();
+        counters.MaxFlushTicks.Should().BePositive();
     }
 
     [Fact]
