@@ -35,8 +35,20 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-          dotnet-version: 10.0.x
-          dotnet-quality: preview
+
+      # A tag must never publish broken or unformatted code: the release gate
+      # is the same restore/format/build/test sequence CI runs.
+      - name: Restore
+        run: dotnet restore Rambla.slnx
+
+      - name: Verify formatting
+        run: dotnet format Rambla.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build Rambla.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Rambla.slnx --configuration Release --no-build --verbosity normal
 
       - name: Resolve version
         id: ver
