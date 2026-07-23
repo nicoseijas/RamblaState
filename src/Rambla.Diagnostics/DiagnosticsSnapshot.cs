@@ -58,19 +58,27 @@ public readonly struct DiagnosticsSnapshot
     /// <summary>Cumulative mutations observed since the session was attached.</summary>
     public long TotalMutations { get; }
 
-    /// <summary>Cumulative notifications raised since the session was attached.</summary>
+    /// <summary>
+    /// Cumulative <c>PropertyChanged</c> notifications actually raised since the
+    /// session was attached. Zero while the state has no subscriber — flushes
+    /// still run and coalesce, but no UI notification occurs.
+    /// </summary>
     public long TotalNotifications { get; }
 
     /// <summary>Accepted mutations per second in the window.</summary>
     public double MutationsPerSecond { get; }
 
-    /// <summary>Notifications raised per second in the window.</summary>
+    /// <summary>Notifications actually raised per second in the window (zero with nothing bound).</summary>
     public double NotificationsPerSecond { get; }
 
     /// <summary>Coalesced flushes per second in the window.</summary>
     public double FlushesPerSecond { get; }
 
-    /// <summary>Fraction of mutations coalescing dropped in the window, 0..1.</summary>
+    /// <summary>
+    /// Fraction of mutations coalescing dropped before the flush, 0..1. An engine
+    /// property, measured against flushed properties rather than raised
+    /// notifications, so it stays meaningful with no subscriber attached.
+    /// </summary>
     public double CoalescingRatio { get; }
 
     /// <summary>Longest single UI flush observed since the session attached (not per window).</summary>

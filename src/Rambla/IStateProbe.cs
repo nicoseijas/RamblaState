@@ -38,12 +38,23 @@ public interface IStateProbe
     void OnMutation(string propertyName);
 
     /// <summary>
-    /// Reports one coalesced flush that raised notifications.
+    /// Reports one coalesced flush. Flushes are reported whether or not a
+    /// <see cref="System.ComponentModel.INotifyPropertyChanged.PropertyChanged"/>
+    /// subscriber is attached — coalescing is a property of the engine, not of
+    /// the subscriber — so <paramref name="notified"/> says whether the flush
+    /// actually raised UI notifications.
     /// </summary>
-    /// <param name="notifiedProperties">
-    /// The distinct properties notified in this flush. Do not retain the reference
+    /// <param name="flushedProperties">
+    /// The distinct properties this flush delivered. Do not retain the reference
     /// beyond the call; its contents are owned by the engine.
     /// </param>
-    /// <param name="raiseDuration">Wall-clock time spent raising the notifications.</param>
-    void OnFlush(IReadOnlyList<string> notifiedProperties, TimeSpan raiseDuration);
+    /// <param name="raiseDuration">
+    /// Wall-clock time spent raising the notifications; <see cref="TimeSpan.Zero"/>
+    /// when <paramref name="notified"/> is <see langword="false"/>.
+    /// </param>
+    /// <param name="notified">
+    /// Whether <c>PropertyChanged</c> was actually raised for these properties.
+    /// <see langword="false"/> when the state had no subscriber at flush time.
+    /// </param>
+    void OnFlush(IReadOnlyList<string> flushedProperties, TimeSpan raiseDuration, bool notified);
 }

@@ -344,6 +344,8 @@ public abstract class RamblaState : INotifyPropertyChanged
 
         // The probe observes every coalesced flush, whether or not a UI handler is
         // attached — coalescing is a property of the engine, not of the subscriber.
+        // The notified flag tells it whether PropertyChanged was actually raised,
+        // so diagnostics can distinguish flushed properties from UI events.
         if (probes is not null)
         {
             TimeSpan raiseDuration = handler is null ? TimeSpan.Zero : ElapsedSince(startTimestamp);
@@ -353,7 +355,7 @@ public abstract class RamblaState : INotifyPropertyChanged
                 // nor propagate out of the flush onto the scheduler/UI thread.
                 try
                 {
-                    probes[i].OnFlush(names, raiseDuration);
+                    probes[i].OnFlush(names, raiseDuration, handler is not null);
                 }
                 catch
                 {

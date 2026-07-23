@@ -25,7 +25,8 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
     private readonly ConcurrentCounters _byProperty = new();
 
     private long _mutations;
-    private long _notifications;
+    private long _flushedProperties; // properties delivered by flushes (engine coalescing)
+    private long _notifications;     // PropertyChanged events actually raised
     private long _flushes;
     private long _raiseTicksSum;    // TimeSpan ticks
     private long _longestRaiseTicks; // TimeSpan ticks
@@ -33,6 +34,7 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
     private IDisposable? _detach;
     private DateTimeOffset _lastTime;
     private long _lastMutations;
+    private long _lastFlushedProperties;
     private long _lastNotifications;
     private long _lastFlushes;
     private long _lastRaiseTicksSum;
@@ -61,16 +63,26 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
     }
 
     /// <inheritdoc />
-    public void OnFlush(IReadOnlyList<string> notifiedProperties, TimeSpan raiseDuration)
+    public void OnFlush(IReadOnlyList<string> flushedProperties, TimeSpan raiseDuration, bool notified)
     {
         Interlocked.Increment(ref _flushes);
-        Interlocked.Add(ref _notifications, notifiedProperties.Count);
+
+        // Flushed properties measure the engine's coalescing regardless of
+        // subscribers; notifications count only PropertyChanged events actually
+        // raised — matching StateMetrics.Notifications — so a state with no
+        // bindings never reports phantom UI traffic.
+        Interlocked.Add(ref _flushedProperties, flushedProperties.Count);
+        if (notified)
+        {
+            Interlocked.Add(ref _notifications, flushedProperties.Count);
+        }
+
         Interlocked.Add(ref _raiseTicksSum, raiseDuration.Ticks);
         UpdateMax(ref _longestRaiseTicks, raiseDuration.Ticks);
 
-        for (int i = 0; i < notifiedProperties.Count; i++)
+        for (int i = 0; i < flushedProperties.Count; i++)
         {
-            _byProperty.IncrementNotification(notifiedProperties[i]);
+            _byProperty.IncrementFlushed(flushedProperties[i], notified);
         }
     }
 
@@ -93,11 +105,13 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
             }
 
             long mutations = Interlocked.Read(ref _mutations);
+            long flushedProperties = Interlocked.Read(ref _flushedProperties);
             long notifications = Interlocked.Read(ref _notifications);
             long flushes = Interlocked.Read(ref _flushes);
             long raiseTicks = Interlocked.Read(ref _raiseTicksSum);
 
             long dMutations = mutations - _lastMutations;
+            long dFlushed = flushedProperties - _lastFlushedProperties;
             long dNotifications = notifications - _lastNotifications;
             long dFlushes = flushes - _lastFlushes;
             long dRaiseTicks = raiseTicks - _lastRaiseTicksSum;
@@ -105,7 +119,11 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
             double mutationsPerSecond = PerSecond(dMutations, seconds);
             double notificationsPerSecond = PerSecond(dNotifications, seconds);
             double flushesPerSecond = PerSecond(dFlushes, seconds);
-            double coalescingRatio = Coalescing(dMutations, dNotifications);
+
+            // Coalescing is an engine property: how many mutations were dropped
+            // before the flush. Computed against flushed properties, not raised
+            // notifications, so it stays meaningful with nothing bound.
+            double coalescingRatio = Coalescing(dMutations, dFlushed);
 
             bool hasDispatcher = _scheduler is not null;
             DispatcherCounters dispatcher = _scheduler?.ReadCounters() ?? default;
@@ -143,6 +161,7 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
 
             _lastTime = now;
             _lastMutations = mutations;
+            _lastFlushedProperties = flushedProperties;
             _lastNotifications = notifications;
             _lastFlushes = flushes;
             _lastRaiseTicksSum = raiseTicks;
@@ -183,17 +202,19 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
             string name = entry.Key;
             long mutations = entry.Value[0];
             long notifications = entry.Value[1];
+            long flushed = entry.Value[2];
 
             if (!_lastByProperty.TryGetValue(name, out long[]? last))
             {
-                last = new long[2];
+                last = new long[3];
             }
 
             long dMutations = mutations - last[0];
             long dNotifications = notifications - last[1];
-            _lastByProperty[name] = new[] { mutations, notifications };
+            long dFlushed = flushed - last[2];
+            _lastByProperty[name] = new[] { mutations, notifications, flushed };
 
-            if (dMutations == 0 && dNotifications == 0)
+            if (dMutations == 0 && dNotifications == 0 && dFlushed == 0)
             {
                 continue;
             }
@@ -202,7 +223,7 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
                 name,
                 PerSecond(dMutations, seconds),
                 PerSecond(dNotifications, seconds),
-                Coalescing(dMutations, dNotifications)));
+                Coalescing(dMutations, dFlushed)));
         }
 
         result.Sort(static (a, b) => b.NotificationsPerSecond.CompareTo(a.NotificationsPerSecond));
@@ -285,7 +306,8 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
 
     /// <summary>
     /// A small concurrent counter table: per property, [0] = mutations, [1] =
-    /// notifications, each bumped with <see cref="Interlocked"/>.
+    /// notifications actually raised, [2] = properties delivered by flushes,
+    /// each bumped with <see cref="Interlocked"/>.
     /// </summary>
     private sealed class ConcurrentCounters
     {
@@ -293,10 +315,17 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
             = new(StringComparer.Ordinal);
 
         public void IncrementMutation(string name)
-            => Interlocked.Increment(ref _counts.GetOrAdd(name, static _ => new long[2])[0]);
+            => Interlocked.Increment(ref _counts.GetOrAdd(name, static _ => new long[3])[0]);
 
-        public void IncrementNotification(string name)
-            => Interlocked.Increment(ref _counts.GetOrAdd(name, static _ => new long[2])[1]);
+        public void IncrementFlushed(string name, bool notified)
+        {
+            long[] counts = _counts.GetOrAdd(name, static _ => new long[3]);
+            Interlocked.Increment(ref counts[2]);
+            if (notified)
+            {
+                Interlocked.Increment(ref counts[1]);
+            }
+        }
 
         public IEnumerable<KeyValuePair<string, long[]>> Snapshot()
         {
@@ -304,7 +333,12 @@ public sealed class DiagnosticsSession : IStateProbe, IDisposable
             {
                 yield return new KeyValuePair<string, long[]>(
                     entry.Key,
-                    new[] { Interlocked.Read(ref entry.Value[0]), Interlocked.Read(ref entry.Value[1]) });
+                    new[]
+                    {
+                        Interlocked.Read(ref entry.Value[0]),
+                        Interlocked.Read(ref entry.Value[1]),
+                        Interlocked.Read(ref entry.Value[2]),
+                    });
             }
         }
     }

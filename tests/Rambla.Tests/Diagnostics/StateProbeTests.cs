@@ -15,14 +15,16 @@ public sealed class StateProbeTests
         public List<string> Mutations { get; } = new();
         public int Flushes { get; private set; }
         public List<string> LastFlush { get; } = new();
+        public bool? LastNotified { get; private set; }
 
         public void OnMutation(string propertyName) => Mutations.Add(propertyName);
 
-        public void OnFlush(IReadOnlyList<string> notifiedProperties, TimeSpan raiseDuration)
+        public void OnFlush(IReadOnlyList<string> flushedProperties, TimeSpan raiseDuration, bool notified)
         {
             Flushes++;
             LastFlush.Clear();
-            LastFlush.AddRange(notifiedProperties);
+            LastFlush.AddRange(flushedProperties);
+            LastNotified = notified;
         }
     }
 
@@ -55,6 +57,22 @@ public sealed class StateProbeTests
 
         probe.Flushes.Should().Be(1);
         probe.LastFlush.Should().BeEquivalentTo(new[] { nameof(DiagTestState.Bid), nameof(DiagTestState.Ask) });
+        probe.LastNotified.Should().BeFalse(); // flushed, but no PropertyChanged was raised
+    }
+
+    [Fact]
+    public void Probe_reports_whether_notifications_were_actually_raised()
+    {
+        var scheduler = new ManualStateScheduler();
+        var vm = new DiagTestState(scheduler);
+        var probe = new RecordingProbe();
+        using IDisposable _ = vm.AttachProbe(probe);
+        vm.PropertyChanged += (_, __) => { };
+
+        vm.Bid = 1m;
+        scheduler.Drain();
+
+        probe.LastNotified.Should().BeTrue();
     }
 
     [Fact]
@@ -86,7 +104,7 @@ public sealed class StateProbeTests
     {
         public void OnMutation(string propertyName) => throw new InvalidOperationException("probe bug");
 
-        public void OnFlush(IReadOnlyList<string> notifiedProperties, TimeSpan raiseDuration)
+        public void OnFlush(IReadOnlyList<string> flushedProperties, TimeSpan raiseDuration, bool notified)
             => throw new InvalidOperationException("probe bug");
     }
 

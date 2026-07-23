@@ -30,8 +30,9 @@ MarketViewModel
 
 ## What you get
 
-- **Rates over a window** — mutations/sec, notifications/sec, flushes/sec, and the
-  **coalescing ratio** (how many mutations never became a notification).
+- **Rates over a window** — mutations/sec, notifications/sec (only events actually
+  raised to a subscriber — zero while nothing is bound), flushes/sec, and the
+  **coalescing ratio** (how many mutations coalescing dropped before the flush).
 - **Hot-property detection** — which properties produce the most notification
   traffic, each with its own coalescing ratio.
 - **Actionable recommendations** — e.g. "batch this" when a property floods the UI.

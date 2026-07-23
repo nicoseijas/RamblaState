@@ -122,6 +122,13 @@ it changes none of the contracts above — notification order, coalescing,
 coherence, and exception behaviour are identical whether or not a probe is
 attached. When no probe is attached, the hot path pays a single volatile read.
 
+A flush is reported to probes whether or not a `PropertyChanged` subscriber is
+attached — coalescing is a property of the engine, not of the subscriber — and
+carries a `notified` flag saying whether notifications were actually raised.
+Diagnostics built on probes must therefore distinguish *flushed properties*
+(engine activity) from *notifications* (UI events); a state with no bindings
+reports zero notifications, matching `StateMetrics.Notifications`.
+
 A probe is documented to never throw, but the engine does not trust it: a probe
 whose callback throws is **isolated** — its exception is swallowed and neither
 stops other probes nor prevents the flush from being scheduled. (This is stricter

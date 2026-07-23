@@ -13,6 +13,7 @@ public sealed class DiagnosticsSessionTests
         var scheduler = new ManualStateScheduler();
         var clock = new FakeClock();
         var vm = new DiagTestState(scheduler);
+        vm.PropertyChanged += (_, __) => { }; // a bound UI: notifications are raised
         using DiagnosticsSession session = StateDiagnostics.Attach(vm, clock: clock);
 
         vm.Bid = 1m;
@@ -36,6 +37,7 @@ public sealed class DiagnosticsSessionTests
         var scheduler = new ManualStateScheduler();
         var clock = new FakeClock();
         var vm = new DiagTestState(scheduler);
+        vm.PropertyChanged += (_, __) => { }; // a bound UI: notifications are raised
         using DiagnosticsSession session = StateDiagnostics.Attach(vm, clock: clock);
 
         for (int i = 0; i < 100; i++)
@@ -79,6 +81,7 @@ public sealed class DiagnosticsSessionTests
         var scheduler = new ManualStateScheduler();
         var clock = new FakeClock();
         var vm = new DiagTestState(scheduler);
+        vm.PropertyChanged += (_, __) => { }; // a bound UI: notifications are raised
         using DiagnosticsSession session = StateDiagnostics.Attach(vm, clock: clock);
 
         // Ask flushes on every write; Bid's writes mostly coalesce.
@@ -108,6 +111,7 @@ public sealed class DiagnosticsSessionTests
         var scheduler = new ManualStateScheduler();
         var clock = new FakeClock();
         var vm = new DiagTestState(scheduler);
+        vm.PropertyChanged += (_, __) => { }; // a bound UI: notifications are raised
         var options = new DiagnosticsOptions { HotNotificationsPerSecond = 10d };
         using DiagnosticsSession session = StateDiagnostics.Attach(vm, clock: clock, options: options);
 
@@ -123,6 +127,37 @@ public sealed class DiagnosticsSessionTests
         s.Recommendations.Should().ContainSingle()
             .Which.Message.Should().Contain("Ask").And.Contain("BeginUpdate");
         s.Recommendations[0].Severity.Should().Be(RecommendationSeverity.Warning);
+    }
+
+    [Fact]
+    public void Without_a_subscriber_no_notifications_are_reported_but_coalescing_still_is()
+    {
+        var scheduler = new ManualStateScheduler();
+        var clock = new FakeClock();
+        var vm = new DiagTestState(scheduler); // nothing bound: no PropertyChanged subscriber
+        using DiagnosticsSession session = StateDiagnostics.Attach(vm, clock: clock);
+
+        vm.Bid = 1m;
+        vm.Bid = 2m;
+        vm.Bid = 3m;
+        scheduler.Drain();
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        DiagnosticsSnapshot s = session.Snapshot();
+
+        // No phantom UI traffic...
+        s.TotalNotifications.Should().Be(0);
+        s.NotificationsPerSecond.Should().Be(0d);
+        s.Recommendations.Should().BeEmpty();
+
+        // ...but the engine's own activity is still measured: three mutations
+        // coalesced into one flushed property.
+        s.TotalMutations.Should().Be(3);
+        s.CoalescingRatio.Should().BeApproximately(2d / 3d, 1e-9);
+        s.HotProperties.Should().ContainSingle();
+        s.HotProperties[0].Name.Should().Be(nameof(DiagTestState.Bid));
+        s.HotProperties[0].MutationsPerSecond.Should().Be(3d);
+        s.HotProperties[0].NotificationsPerSecond.Should().Be(0d);
     }
 
     [Fact]
